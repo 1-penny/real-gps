@@ -2561,12 +2561,8 @@ void gps_task(void* arg)
 		}
 
 		// Write into FIFO
-		memcpy(&(s->fifo[s->head * 2]), iq_buff.get(), NUM_IQ_SAMPLES * 2 * sizeof(short));
-
-		s->head += (long)NUM_IQ_SAMPLES;
-		if (s->head >= FIFO_LENGTH)
-			s->head -= FIFO_LENGTH;
-		//* pthread_cond_signal(&(s->fifo_read_ready));
+		fifo_write(iq_buff.get(), NUM_IQ_SAMPLES, s);
+		
 		s->fifo_read_ready.notify_all();
 
 		//

@@ -68,7 +68,7 @@ struct tx_t
 	std::mutex mtx;
 
 	std::unique_ptr<Device> dev;
-	std::unique_ptr<int16_t[]> buffer;
+	std::unique_ptr<int16_t[]> buffer; // 长度为 32k个样点. SAMPLES_PER_BUFFER
 };
 
 struct gps_t 
@@ -113,14 +113,27 @@ int start_tx_task(sim_t* s);
 int start_gps_task(sim_t* s);
 
 /// FIFO functions.
-size_t get_sample_length(sim_t* s);
+
+// 获取 FIFO 缓冲区当前数据长度. 
+size_t fifo_get_sample_length(sim_t* s);
+
+/** 从 FIFO 缓冲区中读取数据.
+ * 读取完成后，会调整 FIFO 数据.
+ * @return 实际读取的数据数量.
+ */
 size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s);
-bool is_finished_generation(sim_t* s);
+
+/** 向 FIFO 缓冲区写入数据.
+ */
+size_t fifo_write(const int16_t* buffer, size_t samples, sim_t* s);
+
+/** 
+ * FIFO 缓冲区是否可以写入.
+ * 判断条件为缓冲区可用长度不小于0.1s
+ */
 int is_fifo_write_ready(sim_t* s);
 
-
-/// Device functions
-
+bool is_finished_generation(sim_t* s);
 
 /// Sim functions
 int sim_config(sim_t& s, const std::vector<char*>& params);
