@@ -12,12 +12,13 @@
 #include <condition_variable>
 
 #include "gpssim.h"
+#include "device.h"
 
 #define TX_FREQUENCY	1575420000
 #define TX_SAMPLERATE	2600000
 
-#define NUM_IQ_SAMPLES  (TX_SAMPLERATE / 10)
-#define FIFO_LENGTH     (NUM_IQ_SAMPLES * 2)
+#define NUM_IQ_SAMPLES  (TX_SAMPLERATE / 10) // samples in 0.1s
+#define FIFO_LENGTH     (NUM_IQ_SAMPLES * 2) // samples in fifo = samples in 0.1s
 
 // Interactive mode directions
 #define UNDEF 0
@@ -57,20 +58,29 @@ struct option_t
 	int path_loss_enable;
 };
 
-struct tx_t {
-	std::thread thread;
-	std::mutex lock;
-	//int error;
+struct tx_t 
+{
+	tx_t() : dev(nullptr)
+	{
+	}
 
-	struct bladerf* dev;
+	std::thread thread;
+	std::mutex mtx;
+
+	std::unique_ptr<Device> dev;
 	std::unique_ptr<int16_t[]> buffer;
 };
 
-struct gps_t {
-	std::thread thread;
-	std::mutex lock;
+struct gps_t 
+{
+	gps_t() : ready(false) 
+	{
+	}
 
-	int ready;
+	std::thread thread;
+	std::mutex mtx;
+
+	bool ready;
 	std::condition_variable initialization_done;
 };
 
@@ -108,12 +118,10 @@ size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s);
 bool is_finished_generation(sim_t* s);
 int is_fifo_write_ready(sim_t* s);
 
+
 /// Device functions
-int device_open(sim_t& s);
-void device_close(sim_t& s);
-int device_init(sim_t& s);
-void device_send(sim_t* s);
+
 
 /// Sim functions
-void sim_init(sim_t* s);
 int sim_config(sim_t& s, const std::vector<char*>& params);
+int sim_init(sim_t& s);

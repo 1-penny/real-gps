@@ -46,29 +46,23 @@ int main(int argc, char* argv[])
 		goto out;
 	}
 
-	// Initialize simulator
-	sim_init(&s);
-
-	// Allocate TX buffer to hold each block of samples to transmit.
-	s.tx.buffer.reset(new int16_t[SAMPLES_PER_BUFFER * 2]);
-	//s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
-
-	if (s.tx.buffer == nullptr) {
-		fprintf(stderr, "Failed to allocate TX buffer.\n");
-		goto out;
-	}
-
-	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
-	s.fifo.reset(new int16_t[FIFO_LENGTH * 2]); // for 16-bit I and Q samples
-	if (s.fifo.get() == nullptr) {
-		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
+	// Initialize simulator.
+	s.status = sim_init(s);
+	if (s.status != 0) {
+		fprintf(stderr, "Failed to init sim.\n");
 		goto out;
 	}
 
 	// Initializing device.
 	printf("Opening and initializing device...\n");
+	
+	s.tx.dev.reset(new FileDevice());
+	if (!s.tx.dev) {
+		fprintf(stderr, "Failed to create device\n");
+		goto out;
+	}
 
-	s.status = device_init(s);
+	s.status = s.tx.dev->init();
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to initialize device\n");
 		goto out;
@@ -85,12 +79,10 @@ int main(int argc, char* argv[])
 
 	// Wait until GPS task is initialized
 	{
-		std::unique_lock<std::mutex> lck(s.tx.lock);
-		//pthread_mutex_lock(&(s.tx.lock));
+		std::unique_lock<std::mutex> lck(s.tx.mtx);
 		while (!s.gps.ready) {
 			s.gps.initialization_done.wait(lck);
 		}
-		//pthread_mutex_unlock(&(s.tx.lock));
 	}
 
 	// Fillfull the FIFO.
@@ -99,7 +91,7 @@ int main(int argc, char* argv[])
 	}
 
 	// open the device
-	s.status = device_open(s);
+	s.status = s.tx.dev->open();
 	if (s.status != 0) {
 		goto out;
 	}
@@ -112,19 +104,19 @@ int main(int argc, char* argv[])
 	}
 	else
 		printf("Creating TX task...\n");
-
+	
 	// Running...
 	printf("Running...\n");
 	printf("Press 'q' to quit.\n");
 
 	// Wainting for TX task to complete.
-	s.gps.thread.join();
 	s.tx.thread.join();
+	s.gps.thread.join();
 
 	printf("\nDone!\n");
 
 out:
-	device_close(s);
+	s.tx.dev->close();
 	return 0;
 }
 
@@ -279,197 +271,26 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 	return 0;
 }
 
-// 初始化仿真场景.
-void sim_init(sim_t* s)
+int sim_init(sim_t& s)
 {
-	s->tx.dev = NULL;
-	//pthread_mutex_init(&(s->tx.lock), NULL);
-	//s->tx.error = 0;
+	// Allocate TX buffer to hold each block of samples to transmit.
+	s.tx.buffer.reset(new int16_t[SAMPLES_PER_BUFFER * 2]); // for 16-bit I and Q samples
 
-	//pthread_mutex_init(&(s->gps.lock), NULL);
-	//s->gps.error = 0;
-	s->gps.ready = 0;
-	//pthread_cond_init(&(s->gps.initialization_done), NULL);
-
-	//pthread_cond_init(&(s->fifo_write_ready), NULL);
-	//pthread_cond_init(&(s->fifo_read_ready), NULL);
-
-}
-
-int device_open(sim_t& s)
-{
-	int status = 0;
-
-	data_file.open(data_file_name.c_str(), std::ios::binary);
-	if (!data_file.is_open()) {
-		printf("Failed to open file.\n");
+	if (s.tx.buffer == nullptr) {
+		fprintf(stderr, "Failed to allocate TX buffer.\n");
 		return -1;
 	}
-	/*
-	// We must always enable the modules *after* calling bladerf_sync_config().
-	status = bladerf_enable_module(s.tx.dev, BLADERF_MODULE_TX, true);
-	if (status != 0) {
-		fprintf(stderr, "Failed to enable TX module: %s\n", bladerf_strerror(status));
+
+	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
+	s.fifo.reset(new int16_t[FIFO_LENGTH * 2]); // for 16-bit I and Q samples
+	if (s.fifo.get() == nullptr) {
+		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
+		return -1;
 	}
-	*/
-
-	return status;
-}
-
-void device_close(sim_t& s)
-{
-	int status = 0;
-
-	if (data_file.is_open()) {
-		data_file.close();
-		printf("Closing file...\n");
-	}
-
-	/**
-
-	// Disable TX module and shut down underlying TX stream.
-	status = bladerf_enable_module(s.tx.dev, BLADERF_MODULE_TX, false);
-	if (status != 0)
-		fprintf(stderr, "Failed to disable TX module: %s\n", bladerf_strerror(s.status));
-
-	printf("Closing device...\n");
-	bladerf_close(s.tx.dev);
-	*/
-}
-
-// 初始化设备.
-int device_init(sim_t& s)
-{
-	int status = 0;
-
-	/** Pickwick:
-	char* devstr = NULL;
-
-	status = bladerf_open(&s.tx.dev, devstr);
-	if (status != 0) {
-		fprintf(stderr, "Failed to open device: %s\n", bladerf_strerror(status));
-		return status;
-	}
-
-	if (xb_board == 200) {
-		printf("Initializing XB200 expansion board...\n");
-
-		status = bladerf_expansion_attach(s.tx.dev, BLADERF_XB_200);
-		if (status != 0) {
-			fprintf(stderr, "Failed to enable XB200: %s\n", bladerf_strerror(status));
-			return status;
-		}
-
-		status = bladerf_xb200_set_filterbank(s.tx.dev, BLADERF_MODULE_TX, BLADERF_XB200_CUSTOM);
-		if (status != 0) {
-			fprintf(stderr, "Failed to set XB200 TX filterbank: %s\n", bladerf_strerror(status));
-			return status;
-		}
-
-		status = bladerf_xb200_set_path(s.tx.dev, BLADERF_MODULE_TX, BLADERF_XB200_BYPASS);
-		if (status != 0) {
-			fprintf(stderr, "Failed to enable TX bypass path on XB200: %s\n", bladerf_strerror(status));
-			return status;
-		}
-
-		//For sake of completeness set also RX path to a known good state.
-		status = bladerf_xb200_set_filterbank(s.tx.dev, BLADERF_MODULE_RX, BLADERF_XB200_CUSTOM);
-		if (status != 0) {
-			fprintf(stderr, "Failed to set XB200 RX filterbank: %s\n", bladerf_strerror(status));
-			return status;
-		}
-
-		status = bladerf_xb200_set_path(s.tx.dev, BLADERF_MODULE_RX, BLADERF_XB200_BYPASS);
-		if (status != 0) {
-			fprintf(stderr, "Failed to enable RX bypass path on XB200: %s\n", bladerf_strerror(status));
-			return status;
-		}
-	}
-
-	if (xb_board == 300) {
-		fprintf(stderr, "XB300 does not support transmitting on GPS frequency\n");
-		return status;
-	}
-
-	status = bladerf_set_frequency(s.tx.dev, BLADERF_MODULE_TX, TX_FREQUENCY);
-	if (status != 0) {
-		fprintf(stderr, "Faield to set TX frequency: %s\n", bladerf_strerror(status));
-		return status;
-	}
-	else {
-		printf("TX frequency: %u Hz\n", TX_FREQUENCY);
-	}
-
-	status = bladerf_set_sample_rate(s.tx.dev, BLADERF_MODULE_TX, TX_SAMPLERATE, NULL);
-	if (status != 0) {
-		fprintf(stderr, "Failed to set TX sample rate: %s\n", bladerf_strerror(status));
-		return status;
-	}
-	else {
-		printf("TX sample rate: %u sps\n", TX_SAMPLERATE);
-	}
-
-	status = bladerf_set_bandwidth(s.tx.dev, BLADERF_MODULE_TX, TX_BANDWIDTH, NULL);
-	if (status != 0) {
-		fprintf(stderr, "Failed to set TX bandwidth: %s\n", bladerf_strerror(status));
-		return status;
-	}
-	else {
-		printf("TX bandwidth: %u Hz\n", TX_BANDWIDTH);
-	}
-
-	if (txvga1 < BLADERF_TXVGA1_GAIN_MIN)
-		txvga1 = BLADERF_TXVGA1_GAIN_MIN;
-	else if (txvga1 > BLADERF_TXVGA1_GAIN_MAX)
-		txvga1 = BLADERF_TXVGA1_GAIN_MAX;
-
-	//status = bladerf_set_txvga1(s.tx.dev, TX_VGA1);
-	status = bladerf_set_txvga1(s.tx.dev, txvga1);
-	if (status != 0) {
-		fprintf(stderr, "Failed to set TX VGA1 gain: %s\n", bladerf_strerror(status));
-		return status;
-	}
-	else {
-		//printf("TX VGA1 gain: %d dB\n", TX_VGA1);
-		printf("TX VGA1 gain: %d dB\n", txvga1);
-	}
-
-	status = bladerf_set_txvga2(s.tx.dev, TX_VGA2);
-	if (status != 0) {
-		fprintf(stderr, "Failed to set TX VGA2 gain: %s\n", bladerf_strerror(status));
-		return status;
-	}
-	else {
-		printf("TX VGA2 gain: %d dB\n", TX_VGA2);
-	}
-
-	// Configure the TX module for use with the synchronous interface.
-	status = bladerf_sync_config(s.tx.dev,
-		BLADERF_MODULE_TX,
-		BLADERF_FORMAT_SC16_Q11,
-		NUM_BUFFERS,
-		SAMPLES_PER_BUFFER,
-		NUM_TRANSFERS,
-		TIMEOUT_MS);
-
-	if (status != 0) {
-		fprintf(stderr, "Failed to configure TX sync interface: %s\n", bladerf_strerror(s.status));
-		return status;
-	}
-
-	*/
 
 	return 0;
 }
 
-void device_send(sim_t* s)
-{
-	// If there were no errors, transmit the data buffer.
-	//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
-	if (data_file.is_open()) {
-		data_file.write((const char *) s->tx.buffer.get(), SAMPLES_PER_BUFFER * 4);
-	}
-}
 
 
 size_t get_sample_length(sim_t* s)
@@ -531,25 +352,15 @@ int is_fifo_write_ready(sim_t* s)
 
 int start_tx_task(sim_t* s)
 {
-	int status = 1;
-
-	//status = pthread_create(&(s->tx.thread), NULL, tx_task, s);
 	s->tx.thread = std::thread(tx_task, s);
-
-	return(status);
+	return 1;
 }
 
 int start_gps_task(sim_t* s)
 {
-	int status = 1;
-
-	//status = pthread_create(&(s->gps.thread), NULL, gps_task, s);
 	s->gps.thread = std::thread(gps_task, s);
-
-	return(status);
+	return 1;
 }
-
-
 
 
 option_t::option_t()

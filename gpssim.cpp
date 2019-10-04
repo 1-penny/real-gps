@@ -1949,6 +1949,8 @@ int _getch()
 
 void gps_task(void* arg)
 {
+	printf("Enter GPS Task.\n");
+
 	sim_t* s = (sim_t*)arg;
 
 	int sv;
@@ -2545,20 +2547,17 @@ void gps_task(void* arg)
 		if (!s->gps.ready) {
 			// Initialization has been done. Ready to create TX task.
 			printf("GPS signal generator is ready!\n");
-			s->gps.ready = 1;
+			s->gps.ready = true;
 			//* pthread_cond_signal(&(s->gps.initialization_done));
 			s->gps.initialization_done.notify_all();
 		}
 
 		{
 			// Wait utill FIFO write is ready
-			//* pthread_mutex_lock(&(s->gps.lock));
-			std::unique_lock<std::mutex> lck(s->gps.lock);
+			std::unique_lock<std::mutex> lck(s->gps.mtx);
 			while (!is_fifo_write_ready(s)) {
-				//* pthread_cond_wait(&(s->fifo_write_ready), &(s->gps.lock));
 				s->fifo_write_ready.wait(lck);
 			}
-			//* pthread_mutex_unlock(&(s->gps.lock));
 		}
 
 		// Write into FIFO
@@ -2643,10 +2642,10 @@ abort:
 	changemode(0);
 #endif
 
+exit:
 	// Done!
 	s->finished = true;
+	s->fifo_read_ready.notify_all();
 
-exit:
-	printf("Abort.\n");
-	return;
+	printf("\nQuit GPS Task.\n");
 }

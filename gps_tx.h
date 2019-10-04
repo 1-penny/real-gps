@@ -26,5 +26,4 @@
 
 void tx_task(void* arg);
 
-
 #endif

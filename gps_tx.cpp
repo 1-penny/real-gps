@@ -13,6 +13,8 @@
 
 void tx_task(void* arg)
 {
+	printf("Enter Tx Task.\n");
+
 	sim_t* s = (sim_t*)arg;
 	size_t samples_populated;
 
@@ -23,22 +25,22 @@ void tx_task(void* arg)
 		while (buffer_samples_remaining > 0) {
 			
 			{
-				//* pthread_mutex_lock(&(s->gps.lock));
-				std::unique_lock<std::mutex> lck(s->gps.lock);
-				while (get_sample_length(s) == 0)
+				std::unique_lock<std::mutex> lck(s->gps.mtx);
+				while (get_sample_length(s) == 0 && ! is_finished_generation(s))
 				{
-					//* pthread_cond_wait(&(s->fifo_read_ready), &(s->gps.lock));
 					s->fifo_read_ready.wait(lck);
 				}
 				// assert(get_sample_length(s) > 0);
 
 				samples_populated = fifo_read(tx_buffer_current,
 					buffer_samples_remaining, s);
-				//* pthread_mutex_unlock(&(s->gps.lock));
 			}
 
-			//* pthread_cond_signal(&(s->fifo_write_ready));
 			s->fifo_write_ready.notify_all();
+
+			if (is_finished_generation(s)) {
+				goto out;
+			}
 #if 0
 			if (is_fifo_write_ready(s)) {
 				/*
@@ -57,7 +59,8 @@ void tx_task(void* arg)
 			tx_buffer_current += (2 * samples_populated);
 		}
 
-		device_send(s);
+		s->tx.dev->send(s->tx.buffer.get(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
+		//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 
 		if (is_fifo_write_ready(s)) {
 			/*
@@ -68,9 +71,12 @@ void tx_task(void* arg)
 		}
 		
 		if (is_finished_generation(s))	{
-			return;
+			goto out;
 		}
 	}
+
+out:
+	printf("Quit Tx Task.\n");
 }
 
 

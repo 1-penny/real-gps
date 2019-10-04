@@ -123,12 +123,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="device.cpp" />
     <ClCompile Include="gps_tx.cpp" />
     <ClCompile Include="getopt.cpp" />
     <ClCompile Include="gpssim.cpp" />
     <ClCompile Include="real_gps.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="device.h" />
     <ClInclude Include="gps_tx.h" />
     <ClInclude Include="getopt.h" />
     <ClInclude Include="gpssim.h" />
