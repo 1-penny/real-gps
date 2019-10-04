@@ -1,6 +1,8 @@
 #ifndef GPSSIM_H
 #define GPSSIM_H
 
+//#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but smoother carrier phase.
+
 #ifndef TRUE
 #define TRUE	(1)
 #endif
@@ -182,8 +184,12 @@ typedef struct
 	int ca[CA_SEQ_LEN]; /*< C/A Sequence */
 	double f_carr;	/*< Carrier frequency */
 	double f_code;	/*< Code frequency */
+#ifdef FLOAT_CARR_PHASE
+	double carr_phase; /*< Carrier phase */
+#else
 	unsigned int carr_phase; /*< Carrier phase */
 	int carr_phasestep;	/*< Carrier phasestep */
+#endif
 	double code_phase; /*< Code phase */
 	gpstime_t g0;	/*!< GPS time at start */
 	unsigned long sbf[N_SBF_PAGE][N_DWRD_SBF]; /*!< current subframe */
