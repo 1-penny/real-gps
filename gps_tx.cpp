@@ -17,7 +17,7 @@ void tx_task(void* arg)
 	size_t samples_populated;
 
 	while (true) {
-		int16_t* tx_buffer_current = s->tx.buffer.data();
+		int16_t* tx_buffer_current = s->tx.buffer.get();
 		unsigned int buffer_samples_remaining = SAMPLES_PER_BUFFER;
 
 		while (buffer_samples_remaining > 0) {

@@ -1964,7 +1964,7 @@ void gps_task(void* arg)
 
 	int ip, qp;
 	int iTable;
-	short* iq_buff = NULL;
+	std::unique_ptr<short[]> iq_buff;
 
 	gpstime_t grx;
 	double delt;
@@ -1973,8 +1973,7 @@ void gps_task(void* arg)
 	int iumd;
 	int numd;
 	char umfile[MAX_CHAR];
-	//double xyz[USER_MOTION_SIZE][3];
-	double** xyz;
+	std::vector<std::array<double, 3>> xyz;
 
 	int staticLocationMode = FALSE;
 	int nmeaGGA = FALSE;
@@ -2054,36 +2053,21 @@ void gps_task(void* arg)
 	////////////////////////////////////////////////////////////
 
 	// Allocate user motion array
-	xyz = (double**)malloc(USER_MOTION_SIZE * sizeof(double**));
-
-	if (xyz == NULL)
+	xyz.resize(USER_MOTION_SIZE);
+	if (xyz.empty())
 	{
 		printf("ERROR: Faild to allocate user motion array.\n");
 		goto exit;
 	}
-
-	for (i = 0; i < USER_MOTION_SIZE; i++)
-	{
-		xyz[i] = (double*)malloc(3 * sizeof(double));
-
-		if (xyz[i] == NULL)
-		{
-			for (j = i - 1; j >= 0; j--)
-				free(xyz[i]);
-
-			printf("ERROR: Faild to allocate user motion array.\n");
-			goto exit;
-		}
-	}
-
+	
 	if (!staticLocationMode)
 	{
 		// Read user motion file
 		if (nmeaGGA == TRUE)
-			numd = readNmeaGGA(xyz, umfile);
+			numd = readNmeaGGA((double**) xyz.data(), umfile);
 		else
 		{
-			numd = readUserMotion(xyz, umfile);
+			numd = readUserMotion((double**) xyz.data(), umfile);
 		}
 
 		if (numd == -1)
@@ -2106,7 +2090,7 @@ void gps_task(void* arg)
 		// Static geodetic coordinates input mode: "-l"
 		// Added by scateu@gmail.com 
 		printf("Using static location mode.\n");
-		llh2xyz(llh, xyz[0]); // Convert llh to xyz
+		llh2xyz(llh, xyz[0].data()); // Convert llh to xyz
 
 		numd = iduration;
 
@@ -2307,9 +2291,9 @@ void gps_task(void* arg)
 	////////////////////////////////////////////////////////////
 
 	// Allocate I/Q buffer
-	iq_buff = (short*)calloc(2 * iq_buff_size, 2);
+	iq_buff.reset(new int16_t[iq_buff_size * 2]);
 
-	if (iq_buff == NULL)
+	if (iq_buff.get() == nullptr)
 	{
 		printf("ERROR: Faild to allocate 16-bit I/Q buffer.\n");
 		goto exit;
@@ -2331,7 +2315,7 @@ void gps_task(void* arg)
 	grx = incGpsTime(g0, 0.0);
 
 	// Allocate visible satellites
-	allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[0], elvmask);
+	allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[0].data(), elvmask);
 
 	for (i = 0; i < MAX_CHAN; i++)
 	{
@@ -2451,7 +2435,7 @@ void gps_task(void* arg)
 				sv = chan[i].prn - 1;
 
 				// Current pseudorange
-				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[iumd]);
+				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[iumd].data());
 				chan[i].azel[0] = rho.azel[0];
 				chan[i].azel[1] = rho.azel[1];
 
@@ -2578,7 +2562,7 @@ void gps_task(void* arg)
 		}
 
 		// Write into FIFO
-		memcpy(&(s->fifo[s->head * 2]), iq_buff, NUM_IQ_SAMPLES * 2 * sizeof(short));
+		memcpy(&(s->fifo[s->head * 2]), iq_buff.get(), NUM_IQ_SAMPLES * 2 * sizeof(short));
 
 		s->head += (long)NUM_IQ_SAMPLES;
 		if (s->head >= FIFO_LENGTH)
@@ -2625,7 +2609,7 @@ void gps_task(void* arg)
 			}
 
 			// Update channel allocation
-			allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[iumd], elvmask);
+			allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[iumd].data(), elvmask);
 
 			// Show ditails about simulated channels
 			if (verb)
@@ -2635,7 +2619,7 @@ void gps_task(void* arg)
 				printf("%4d/%02d/%02d,%02d:%02d:%02.0f (%d:%.0f)\n",
 					t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec, grx.week, grx.sec);
 				printf("xyz = %11.1f, %11.1f, %11.1f\n", xyz[iumd][0], xyz[iumd][1], xyz[iumd][2]);
-				xyz2llh(xyz[iumd], llh);
+				xyz2llh(xyz[iumd].data(), llh);
 				printf("llh = %11.6f, %11.6f, %11.1f\n", llh[0] * R2D, llh[1] * R2D, llh[2]);
 				for (i = 0; i < MAX_CHAN; i++)
 				{
@@ -2661,14 +2645,6 @@ abort:
 
 	// Done!
 	s->finished = true;
-
-	// Free I/Q buffer
-	free(iq_buff);
-
-	// Free user motion array
-	for (i = 0; i < USER_MOTION_SIZE; i++)
-		free(xyz[i]);
-	free(xyz);
 
 exit:
 	printf("Abort.\n");

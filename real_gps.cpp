@@ -50,17 +50,17 @@ int main(int argc, char* argv[])
 	sim_init(&s);
 
 	// Allocate TX buffer to hold each block of samples to transmit.
-	s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
+	s.tx.buffer.reset(new int16_t[SAMPLES_PER_BUFFER * 2]);
+	//s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
 
-	if (s.tx.buffer.empty()) {
+	if (s.tx.buffer == nullptr) {
 		fprintf(stderr, "Failed to allocate TX buffer.\n");
 		goto out;
 	}
 
 	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
-	s.fifo.resize(FIFO_LENGTH * 2); // for 16-bit I and Q samples
-
-	if (s.fifo.empty()) {
+	s.fifo.reset(new int16_t[FIFO_LENGTH * 2]); // for 16-bit I and Q samples
+	if (s.fifo.get() == nullptr) {
 		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
 		goto out;
 	}
@@ -467,7 +467,7 @@ void device_send(sim_t* s)
 	// If there were no errors, transmit the data buffer.
 	//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 	if (data_file.is_open()) {
-		data_file.write((const char *) s->tx.buffer.data(), SAMPLES_PER_BUFFER * 4);
+		data_file.write((const char *) s->tx.buffer.get(), SAMPLES_PER_BUFFER * 4);
 	}
 }
 
