@@ -66,7 +66,8 @@ void tx_task(void* arg)
 			fflush(stdout);
 			*/
 		}
-		else if (is_finished_generation(s))	{
+		
+		if (is_finished_generation(s))	{
 			return;
 		}
 	}
