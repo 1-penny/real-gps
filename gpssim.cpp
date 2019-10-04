@@ -2548,7 +2548,6 @@ void gps_task(void* arg)
 			// Initialization has been done. Ready to create TX task.
 			printf("GPS signal generator is ready!\n");
 			s->gps.ready = true;
-			//* pthread_cond_signal(&(s->gps.initialization_done));
 			s->gps.initialization_done.notify_all();
 		}
 

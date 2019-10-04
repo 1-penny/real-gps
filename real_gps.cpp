@@ -10,8 +10,6 @@
 #include <time.h>
 #include <math.h>
 
-#include <fstream>
-
 // for _getch used in Windows runtime.
 #ifdef _WIN32
 #include <conio.h>
@@ -19,9 +17,6 @@
 #else
 #include <unistd.h>
 #endif
-
-std::string data_file_name = "gpssend.bin";
-std::ofstream data_file;
 
 const char* default_args = "-e brdc3540.14n -l 30,120,0 -d 10";
 
@@ -43,14 +38,14 @@ int main(int argc, char* argv[])
 	s.status = sim_config(s, params);
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to config sim.\n");
-		goto out;
+		return -1;
 	}
 
 	// Initialize simulator.
 	s.status = sim_init(s);
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to init sim.\n");
-		goto out;
+		return -1;
 	}
 
 	// Initializing device.
@@ -59,48 +54,48 @@ int main(int argc, char* argv[])
 	s.tx.dev.reset(new FileDevice());
 	if (!s.tx.dev) {
 		fprintf(stderr, "Failed to create device\n");
-		goto out;
+		return -1;
 	}
 
 	s.status = s.tx.dev->init();
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to initialize device\n");
-		goto out;
-	}
-
-	// Start GPS task.
-	s.status = start_gps_task(&s);
-	if (s.status < 0) {
-		fprintf(stderr, "Failed to start GPS task.\n");
-		goto out;
-	}
-	else
-		printf("Creating GPS task...\n");
-
-	// Wait until GPS task is initialized
-	{
-		std::unique_lock<std::mutex> lck(s.tx.mtx);
-		while (!s.gps.ready) {
-			s.gps.initialization_done.wait(lck);
-		}
-	}
-
-	// Fillfull the FIFO.
-	if (is_fifo_write_ready(&s)) {
-		s.fifo_write_ready.notify_all();
+		return -1;
 	}
 
 	// open the device
 	s.status = s.tx.dev->open();
 	if (s.status != 0) {
-		goto out;
+		return -1;
+	}
+
+	
+
+	// Start GPS task.
+	s.status = start_gps_task(&s);
+	if (s.status < 0) {
+		fprintf(stderr, "Failed to start GPS task.\n");
+		return -1;
+	}
+	else
+		printf("Creating GPS task...\n");
+
+	// Wait until GPS task is initialized
+	std::unique_lock<std::mutex> lck(s.tx.mtx);
+	while (!s.gps.ready) {
+		s.gps.initialization_done.wait(lck);
+	}
+	
+	// Fillfull the FIFO.
+	if (is_fifo_write_ready(&s)) {
+		s.fifo_write_ready.notify_all();
 	}
 
 	// Start TX task
 	s.status = start_tx_task(&s);
 	if (s.status < 0) {
 		fprintf(stderr, "Failed to start TX task.\n");
-		goto out;
+		return -1;
 	}
 	else
 		printf("Creating TX task...\n");
@@ -115,7 +110,6 @@ int main(int argc, char* argv[])
 
 	printf("\nDone!\n");
 
-out:
 	s.tx.dev->close();
 	return 0;
 }
@@ -336,6 +330,10 @@ size_t fifo_write(const int16_t* buffer, size_t samples, sim_t* s)
 	memcpy(&(s->fifo[s->head * 2]), buffer, samples * 2 * sizeof(short));
 
 	s->head += (long) samples;
+	
+	if (s->head > FIFO_LENGTH)
+		s->head -= FIFO_LENGTH;
+
 	if (s->head >= FIFO_LENGTH)
 		s->head -= FIFO_LENGTH;
 
