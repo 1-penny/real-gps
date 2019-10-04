@@ -50,17 +50,17 @@ int main(int argc, char* argv[])
 	sim_init(&s);
 
 	// Allocate TX buffer to hold each block of samples to transmit.
-	s.tx.buffer = (int16_t*)malloc(SAMPLES_PER_BUFFER * sizeof(int16_t) * 2); // for 16-bit I and Q samples
+	s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
 
-	if (s.tx.buffer == NULL) {
+	if (s.tx.buffer.empty()) {
 		fprintf(stderr, "Failed to allocate TX buffer.\n");
 		goto out;
 	}
 
 	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
-	s.fifo = (int16_t*)malloc(FIFO_LENGTH * sizeof(int16_t) * 2); // for 16-bit I and Q samples
+	s.fifo.resize(FIFO_LENGTH * 2); // for 16-bit I and Q samples
 
-	if (s.fifo == NULL) {
+	if (s.fifo.empty()) {
 		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
 		goto out;
 	}
@@ -89,7 +89,6 @@ int main(int argc, char* argv[])
 		//pthread_mutex_lock(&(s.tx.lock));
 		while (!s.gps.ready) {
 			s.gps.initialization_done.wait(lck);
-			//pthread_cond_wait(&(s.gps.initialization_done), &(s.tx.lock));
 		}
 		//pthread_mutex_unlock(&(s.tx.lock));
 	}
@@ -97,7 +96,6 @@ int main(int argc, char* argv[])
 	// Fillfull the FIFO.
 	if (is_fifo_write_ready(&s)) {
 		s.fifo_write_ready.notify_all();
-		//pthread_cond_signal(&(s.fifo_write_ready));
 	}
 
 	// open the device
@@ -120,21 +118,14 @@ int main(int argc, char* argv[])
 	printf("Press 'q' to quit.\n");
 
 	// Wainting for TX task to complete.
+	s.gps.thread.join();
 	s.tx.thread.join();
-	//pthread_join(s.tx.thread, NULL);
+
 	printf("\nDone!\n");
 
 out:
 	device_close(s);
-
-	// Free up resources
-	if (s.tx.buffer != NULL)
-		free(s.tx.buffer);
-
-	if (s.fifo != NULL)
-		free(s.fifo);
-
-	return(0);
+	return 0;
 }
 
 void usage(void)
@@ -232,7 +223,7 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 				t0.hh < 0 || t0.hh>23 || t0.mm < 0 || t0.mm>59 || t0.sec < 0.0 || t0.sec >= 60.0)
 			{
 				printf("ERROR: Invalid date and time.\n");
-				exit(1);
+				return -1;
 			}
 			t0.sec = floor(t0.sec);
 			date2gps(&t0, &s.opt.g0);
@@ -242,7 +233,7 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 			if (duration<0.0 || duration>((double)USER_MOTION_SIZE) / 10.0)
 			{
 				printf("ERROR: Invalid duration.\n");
-				exit(1);
+				return -1;
 			}
 			s.opt.iduration = (int)(duration * 10.0 + 0.5);
 			break;
@@ -476,7 +467,7 @@ void device_send(sim_t* s)
 	// If there were no errors, transmit the data buffer.
 	//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 	if (data_file.is_open()) {
-		data_file.write((const char *) s->tx.buffer, SAMPLES_PER_BUFFER * 4);
+		data_file.write((const char *) s->tx.buffer.data(), SAMPLES_PER_BUFFER * 4);
 	}
 }
 

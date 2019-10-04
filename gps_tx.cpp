@@ -17,11 +17,11 @@ void tx_task(void* arg)
 	size_t samples_populated;
 
 	while (true) {
-		int16_t* tx_buffer_current = s->tx.buffer;
+		int16_t* tx_buffer_current = s->tx.buffer.data();
 		unsigned int buffer_samples_remaining = SAMPLES_PER_BUFFER;
 
 		while (buffer_samples_remaining > 0) {
-
+			
 			{
 				//* pthread_mutex_lock(&(s->gps.lock));
 				std::unique_lock<std::mutex> lck(s->gps.lock);

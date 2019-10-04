@@ -7,7 +7,6 @@
 #include <thread>
 #include <mutex>
 #include <condition_variable>
-//#include <pthread.h>
 
 #include "gpssim.h"
 
@@ -57,28 +56,19 @@ struct option_t
 
 struct tx_t {
 	std::thread thread;
-	//pthread_t thread;
-
 	std::mutex lock;
-	//pthread_mutex_t lock;
 	//int error;
 
 	struct bladerf* dev;
-	int16_t* buffer;
+	std::vector<int16_t> buffer;
 };
 
 struct gps_t {
 	std::thread thread;
-	//pthread_t thread;
-
 	std::mutex lock;
-	//pthread_mutex_t lock;
-
-	//int error;
 
 	int ready;
 	std::condition_variable initialization_done;
-	//pthread_cond_t initialization_done;
 };
 
 struct sim_t 
@@ -92,15 +82,12 @@ struct sim_t
 
 	int status;
 	bool finished;
-	int16_t* fifo;
+	std::vector<int16_t> fifo;
 	long head, tail;
 	size_t sample_length;
 
 	std::condition_variable fifo_read_ready;
-	//pthread_cond_t fifo_read_ready;
-
 	std::condition_variable fifo_write_ready;
-	//pthread_cond_t fifo_write_ready;
 
 	double time;
 };
