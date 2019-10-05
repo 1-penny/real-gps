@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
 	}
 	
 	// Fillfull the FIFO.
-	if (is_fifo_write_ready(&s)) {
+	if (s.fifo.is_write_ready()) {
 		s.fifo_write_ready.notify_all();
 	}
 
@@ -276,8 +276,8 @@ int sim_init(sim_t& s)
 	}
 
 	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
-	s.fifo.reset(new int16_t[FIFO_LENGTH * 2]); // for 16-bit I and Q samples
-	if (s.fifo.get() == nullptr) {
+	s.fifo.reset(FIFO_LENGTH, 2);// for 16-bit I and Q samples
+	if (! s.fifo.ready()) {
 		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
 		return -1;
 	}
@@ -285,76 +285,94 @@ int sim_init(sim_t& s)
 	return 0;
 }
 
-
-
-size_t fifo_get_sample_length(sim_t* s)
+fifo_t::fifo_t()
 {
-	long length;
+	head = 0;
+	tail = 0;
+	step = 1;
+	size = 0;
+}
 
-	length = s->head - s->tail;
+bool fifo_t::reset(int size2, int step2)
+{
+	if (size2 > 0 && step2 > 0) {
+		this->size = size2;
+		this->step = step2;
+		fifo.reset(new int16_t[size2 * step2]);
+	}
+
+	return ready();
+}
+
+bool fifo_t::ready()
+{
+	return (fifo.get() != nullptr) && (size > 0) && (step > 0);
+}
+
+size_t fifo_t::get_sample_length()
+{
+	long length = head - tail;
 	if (length < 0)
 		length += FIFO_LENGTH;
 
 	return (size_t) length;
 }
 
-size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s)
+size_t fifo_t::read(int16_t* buff, size_t num)
 {
-	int16_t* buffer_current = buffer;
-	size_t length = fifo_get_sample_length(s);
+	int16_t* buffer_current = buff;
+	size_t length = get_sample_length();
+	int samples = num;
 
 	if (length < samples)
 		samples = length;
 
 	length = samples; // return value
 
-	size_t samples_remaining = FIFO_LENGTH - s->tail;
+	size_t samples_remaining = FIFO_LENGTH - tail;
 
 	if (samples > samples_remaining) {
-		memcpy(buffer_current, &(s->fifo[s->tail * 2]), samples_remaining * sizeof(int16_t) * 2);
-		s->tail = 0;
-		buffer_current += samples_remaining * 2;
+		memcpy(buffer_current, &(fifo[tail * step]), samples_remaining * sizeof(int16_t) * step);
+		tail = 0;
+		buffer_current += samples_remaining * step;
 		samples -= samples_remaining;
 	}
 
-	memcpy(buffer_current, &(s->fifo[s->tail * 2]), samples * sizeof(int16_t) * 2);
-	s->tail += (long)samples;
-	if (s->tail >= FIFO_LENGTH)
-		s->tail -= FIFO_LENGTH;
+	memcpy(buffer_current, &(fifo[tail * step]), samples * sizeof(int16_t) * step);
+	tail += (long)samples;
+	if (tail >= FIFO_LENGTH)
+		tail -= FIFO_LENGTH;
 
 	return length;
 }
 
-size_t fifo_write(const int16_t* buffer, size_t samples, sim_t* s)
+size_t fifo_t::write(const int16_t* buff, size_t samples)
 {
-	memcpy(&(s->fifo[s->head * 2]), buffer, samples * 2 * sizeof(short));
+	memcpy(&(fifo[head * step]), buff, samples * step * sizeof(short));
 
-	s->head += (long) samples;
+	head += (long) samples;
 	
-	if (s->head > FIFO_LENGTH)
-		s->head -= FIFO_LENGTH;
+	if (head > FIFO_LENGTH)
+		head -= FIFO_LENGTH;
 
-	if (s->head >= FIFO_LENGTH)
-		s->head -= FIFO_LENGTH;
+	if (head >= FIFO_LENGTH)
+		head -= FIFO_LENGTH;
 
 	return samples;
 }
+
+bool fifo_t::is_write_ready()
+{
+	int sample_length = get_sample_length();
+	return (sample_length < NUM_IQ_SAMPLES);
+}
+
 
 bool is_finished_generation(sim_t* s)
 {
 	return s->finished;
 }
 
-int is_fifo_write_ready(sim_t* s)
-{
-	int status = 0;
-
-	s->sample_length = fifo_get_sample_length(s);
-	if (s->sample_length < NUM_IQ_SAMPLES)
-		status = 1;
-
-	return status;
-}
 
 int start_tx_task(sim_t* s)
 {
@@ -394,9 +412,6 @@ sim_t::sim_t()
 	finished = false;
 
 	status = 0;
-	head = 0;
-	tail = 0;
-	sample_length = 0;
 
 	time = 0.0;
 }

@@ -26,7 +26,7 @@ void tx_task(void* arg)
 		// 等待条件变量，同时解开同步锁.
 		{
 			std::unique_lock<std::mutex> lck(s->gps.mtx);
-			while (fifo_get_sample_length(s) < SAMPLES_PER_BUFFER && !is_finished_generation(s))
+			while (s->fifo.get_sample_length() < SAMPLES_PER_BUFFER && !is_finished_generation(s))
 			{
 				s->fifo_read_ready.wait(lck);
 			}
@@ -35,7 +35,7 @@ void tx_task(void* arg)
 				goto out;
 			}
 			
-			size_t samples_populated = fifo_read(tx_buffer_current, samples_chunk, s);
+			size_t samples_populated = s->fifo.read(tx_buffer_current, samples_chunk);
 			assert(samples_populated == samples_chunk);
 		}
 
@@ -59,7 +59,7 @@ void tx_task(void* arg)
 
 		s->tx.dev->send(s->tx.buffer.get(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
 
-		if (is_fifo_write_ready(s)) {
+		if (s->fifo.is_write_ready()) {
 			/*
 			printf("\rTime = %4.1f", s->time);
 			s->time += 0.1;

@@ -84,6 +84,44 @@ struct gps_t
 	std::condition_variable initialization_done;
 };
 
+// FIFO 缓冲区.
+struct fifo_t
+{
+	fifo_t();
+
+	// 重置缓冲区.
+	bool reset(int size, int step);
+
+	// 缓冲区是否准备好.
+	bool ready();
+	
+	// 获取 FIFO 缓冲区当前数据长度. 
+	size_t get_sample_length();
+
+	/** 从 FIFO 缓冲区中读取数据.
+	 * 读取完成后，会调整 FIFO 数据.
+	 * @return 实际读取的数据数量.
+	 */
+	size_t read(int16_t* buffer, size_t samples);
+
+	/** 向 FIFO 缓冲区写入数据.
+	 */
+	size_t write(const int16_t* buffer, size_t samples);
+
+	/**
+	 * FIFO 缓冲区是否可以写入.
+	 * 判断条件为缓冲区可用长度不小于0.1s
+	 */
+	bool is_write_ready();
+
+private:
+	std::unique_ptr<int16_t[]> fifo; // 缓冲区.
+	long head; // 缓冲区结尾位置.(空闲区起始位置)
+	long tail; // 缓冲区起始位置.(数据区起始位置)
+	int step; // 缓冲区每个样点的元素个数.
+	int size; // 缓冲区样点数量.
+};
+
 struct sim_t 
 {
 	sim_t();
@@ -95,15 +133,15 @@ struct sim_t
 
 	int status;
 	bool finished;
-	std::unique_ptr<int16_t[]> fifo;
-	long head, tail;
-	size_t sample_length;
 
+	fifo_t fifo;
+	
 	std::condition_variable fifo_read_ready;
 	std::condition_variable fifo_write_ready;
 
 	double time;
 };
+
 
 
 void usage(void);
@@ -114,24 +152,6 @@ int start_gps_task(sim_t* s);
 
 /// FIFO functions.
 
-// 获取 FIFO 缓冲区当前数据长度. 
-size_t fifo_get_sample_length(sim_t* s);
-
-/** 从 FIFO 缓冲区中读取数据.
- * 读取完成后，会调整 FIFO 数据.
- * @return 实际读取的数据数量.
- */
-size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s);
-
-/** 向 FIFO 缓冲区写入数据.
- */
-size_t fifo_write(const int16_t* buffer, size_t samples, sim_t* s);
-
-/** 
- * FIFO 缓冲区是否可以写入.
- * 判断条件为缓冲区可用长度不小于0.1s
- */
-int is_fifo_write_ready(sim_t* s);
 
 bool is_finished_generation(sim_t* s);
 

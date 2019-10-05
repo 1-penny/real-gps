@@ -1957,7 +1957,7 @@ void gps_task(void* arg)
 	int neph, ieph;
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
 	gpstime_t g0;
-
+	
 	double llh[3];
 
 	int i, j;
@@ -2554,13 +2554,13 @@ void gps_task(void* arg)
 		{
 			// Wait utill FIFO write is ready
 			std::unique_lock<std::mutex> lck(s->gps.mtx);
-			while (!is_fifo_write_ready(s)) {
+			while (!s->fifo.is_write_ready()) {
 				s->fifo_write_ready.wait(lck);
 			}
 		}
 
 		// Write into FIFO
-		fifo_write(iq_buff.get(), NUM_IQ_SAMPLES, s);
+		s->fifo.write(iq_buff.get(), NUM_IQ_SAMPLES);
 		
 		s->fifo_read_ready.notify_all();
 
