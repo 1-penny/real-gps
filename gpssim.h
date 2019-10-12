@@ -1,7 +1,7 @@
 #ifndef GPSSIM_H
 #define GPSSIM_H
 
-//#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but smoother carrier phase.
+#define FLOAT_CARR_PHASE // For RKT simulation. Higher computational load, but smoother carrier phase.
 
 #ifndef TRUE
 #define TRUE	(1)

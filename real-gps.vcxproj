@@ -88,10 +88,11 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Library\boost_1_71_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\UHD\include;C:\Library\boost_1_71_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
+      <AdditionalLibraryDirectories>C:\Library\boost_1_71_0\stage\lib;C:\Program Files\UHD\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
@@ -118,12 +119,13 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Library\boost_1_71_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Program Files\UHD\include;C:\Library\boost_1_71_0;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>C:\Library\boost_1_71_0\stage\lib;C:\Program Files\UHD\lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -134,6 +136,7 @@
     <ClCompile Include="getopt.cpp" />
     <ClCompile Include="gpssim.cpp" />
     <ClCompile Include="real_gps.cpp" />
+    <ClCompile Include="usrp_device.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="device.h" />
@@ -143,6 +146,7 @@
     <ClInclude Include="getopt.h" />
     <ClInclude Include="gpssim.h" />
     <ClInclude Include="real_gps.h" />
+    <ClInclude Include="usrp_device.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />

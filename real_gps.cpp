@@ -57,17 +57,17 @@ int main(int argc, char* argv[])
 	// Initializing device.
 	printf("Opening and initializing device...\n");
 	
-	s.tx.dev.reset(Device::make("file", 
-		{ {"filename", "c:/data/gpssend_7.bin"}, {"verbose", "1"} }));
+	s.tx.dev.reset(Device::make("usrp", { {"verbose", "1"} }));
 	if (!s.tx.dev) {
 		fprintf(stderr, "Failed to create device\n");
 		return -1;
 	}
 
 	std::map<std::string, std::string> dev_params = {
+		//{"filename", "c:/data/gpssend_7.bin"}, 
 		{"tx.freq", "1575420000"},
 		{"tx.rate", "2600000"},
-		{"tx.gain", "30"}
+		{"tx.gain", "40"}
 	};
 	if (!s.tx.dev->set_params(dev_params)) {
 		fprintf(stderr, "Failed to initialize device\n");

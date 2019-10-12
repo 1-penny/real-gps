@@ -1,6 +1,7 @@
 #include "device.h"
 
 #include "file_device.h"
+#include "usrp_device.h"
 
 #include <boost/algorithm/string.hpp>
 namespace algo = boost::algorithm;
@@ -39,12 +40,15 @@ const std::string Device::get_param(const std::string& name)
 Device* Device::make(const std::string& name, const std::map<std::string, std::string>& params)
 {
 	std::unique_ptr<Device> ptr;
+
 	if (algo::iequals(name, "")) {
 		ptr.reset(new Device);
 	}
-
-	if (algo::iequals(name, "file")) {
+	else if (algo::iequals(name, "file")) {
 		ptr.reset(new FileDevice());
+	}
+	else if (algo::iequals(name, "usrp")) {
+		ptr.reset(new UsrpDevice());
 	}
 
 	if (!params.empty()) {
@@ -52,7 +56,7 @@ Device* Device::make(const std::string& name, const std::map<std::string, std::s
 			return nullptr;
 		}
 	}
-
+	
 	return ptr.release();
 }
 
