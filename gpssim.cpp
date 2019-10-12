@@ -1966,7 +1966,7 @@ void gps_task(void* arg)
 
 	int ip, qp;
 	int iTable;
-	std::unique_ptr<short[]> iq_buff;
+	std::vector<short> iq_buff;
 
 	gpstime_t grx;
 	double delt;
@@ -2293,9 +2293,8 @@ void gps_task(void* arg)
 	////////////////////////////////////////////////////////////
 
 	// Allocate I/Q buffer
-	iq_buff.reset(new int16_t[iq_buff_size * 2]);
-
-	if (iq_buff.get() == nullptr)
+	iq_buff.resize(iq_buff_size * 2);
+	if (iq_buff.size() != iq_buff_size * 2)
 	{
 		printf("ERROR: Faild to allocate 16-bit I/Q buffer.\n");
 		goto exit;
@@ -2561,7 +2560,7 @@ void gps_task(void* arg)
 		}
 
 		// Write into FIFO
-		memcpy(&(s->fifo[s->head * 2]), iq_buff.get(), NUM_IQ_SAMPLES * 2 * sizeof(short));
+		memcpy(&(s->fifo[s->head * 2]), iq_buff.data(), NUM_IQ_SAMPLES * 2 * sizeof(short));
 
 		s->head += (long)NUM_IQ_SAMPLES;
 		if (s->head >= FIFO_LENGTH)

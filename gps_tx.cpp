@@ -19,7 +19,7 @@ void tx_task(void* arg)
 	size_t samples_populated;
 
 	while (true) {
-		int16_t* tx_buffer_current = s->tx.buffer.get();
+		int16_t* tx_buffer_current = s->tx.buffer.data();
 		unsigned int buffer_samples_remaining = SAMPLES_PER_BUFFER;
 
 		while (buffer_samples_remaining > 0) {
@@ -59,7 +59,7 @@ void tx_task(void* arg)
 			tx_buffer_current += (2 * samples_populated);
 		}
 
-		s->tx.dev->send(s->tx.buffer.get(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
+		s->tx.dev->send(s->tx.buffer.data(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
 		//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 
 		if (is_fifo_write_ready(s)) {

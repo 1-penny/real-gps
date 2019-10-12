@@ -5,7 +5,7 @@
 #include <vector>
 #include <array>
 
-#include <memory>
+//#include <memory>
 
 #include <thread>
 #include <mutex>
@@ -68,7 +68,7 @@ struct tx_t
 	std::mutex mtx;
 
 	std::unique_ptr<Device> dev;
-	std::unique_ptr<int16_t[]> buffer;
+	std::vector<int16_t> buffer;
 };
 
 struct gps_t 
@@ -95,7 +95,7 @@ struct sim_t
 
 	int status;
 	bool finished;
-	std::unique_ptr<int16_t[]> fifo;
+	std::vector<int16_t> fifo;
 	long head, tail;
 	size_t sample_length;
 

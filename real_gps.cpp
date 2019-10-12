@@ -20,7 +20,7 @@
 #include <unistd.h>
 #endif
 
-std::string data_file_name = "gpssend.bin";
+std::string data_file_name = "c:/data/gpssend_7.bin";
 std::ofstream data_file;
 
 const char* default_args = "-e brdc3540.14n -l 30,120,0 -d 10";
@@ -274,16 +274,16 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 int sim_init(sim_t& s)
 {
 	// Allocate TX buffer to hold each block of samples to transmit.
-	s.tx.buffer.reset(new int16_t[SAMPLES_PER_BUFFER * 2]); // for 16-bit I and Q samples
+	s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
 
-	if (s.tx.buffer == nullptr) {
+	if (s.tx.buffer.size() != SAMPLES_PER_BUFFER * 2) {
 		fprintf(stderr, "Failed to allocate TX buffer.\n");
 		return -1;
 	}
 
 	// Allocate FIFOs to hold 0.1 seconds of I/Q samples each.
-	s.fifo.reset(new int16_t[FIFO_LENGTH * 2]); // for 16-bit I and Q samples
-	if (s.fifo.get() == nullptr) {
+	s.fifo.resize(FIFO_LENGTH * 2); // for 16-bit I and Q samples
+	if (s.fifo.size() != FIFO_LENGTH * 2) {
 		fprintf(stderr, "Failed to allocate I/Q sample buffer.\n");
 		return -1;
 	}

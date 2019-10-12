@@ -185,7 +185,7 @@ int FileDevice::open(void* param)
 {
 	m_file.close();
 
-	m_file.open("gpssend.bin", std::ios::binary);
+	m_file.open("c:/data/gpssend_7.bin", std::ios::binary);
 	return m_file.is_open() ? 0 : -1;
 }
 
