@@ -1953,14 +1953,12 @@ void gps_task(void* arg)
 
 	sim_t* s = (sim_t*)arg;
 
-	int sv;
 	int neph, ieph;
 	ephem_t eph[EPHEM_ARRAY_SIZE][MAX_SAT];
 	gpstime_t g0;
 
 	double llh[3];
 
-	int i, j;
 	channel_t chan[MAX_CHAN];
 	double elvmask = 0.0; // in degree
 
@@ -1970,7 +1968,6 @@ void gps_task(void* arg)
 
 	gpstime_t grx;
 	double delt;
-	int isamp;
 
 	int iumd;
 	int numd;
@@ -2142,7 +2139,7 @@ void gps_task(void* arg)
 	// Set simulation start time
 	////////////////////////////////////////////////////////////
 
-	for (sv = 0; sv < MAX_SAT; sv++)
+	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
 		if (eph[0][sv].vflg == 1)
 		{
@@ -2152,7 +2149,7 @@ void gps_task(void* arg)
 		}
 	}
 
-	for (sv = 0; sv < MAX_SAT; sv++)
+	for (int sv = 0; sv < MAX_SAT; sv++)
 	{
 		if (eph[neph - 1][sv].vflg == 1)
 		{
@@ -2180,9 +2177,9 @@ void gps_task(void* arg)
 			ionoutc.tot = (int)gtmp.sec;
 
 			// Overwrite the TOC and TOE to the scenario start time
-			for (sv = 0; sv < MAX_SAT; sv++)
+			for (int sv = 0; sv < MAX_SAT; sv++)
 			{
-				for (i = 0; i < neph; i++)
+				for (int i = 0; i < neph; i++)
 				{
 					if (eph[i][sv].vflg == 1)
 					{
@@ -2226,9 +2223,9 @@ void gps_task(void* arg)
 	// Select the current set of ephemerides
 	ieph = -1;
 
-	for (i = 0; i < neph; i++)
+	for (int i = 0; i < neph; i++)
 	{
-		for (sv = 0; sv < MAX_SAT; sv++)
+		for (int sv = 0; sv < MAX_SAT; sv++)
 		{
 			if (eph[i][sv].vflg == 1)
 			{
@@ -2272,7 +2269,7 @@ void gps_task(void* arg)
 		}
 
 		// Check TOA
-		for (sv = 0; sv < MAX_SAT; sv++)
+		for (int sv = 0; sv < MAX_SAT; sv++)
 		{
 			if (alm[sv].id != 0) // Valid almanac
 			{
@@ -2305,11 +2302,11 @@ void gps_task(void* arg)
 	////////////////////////////////////////////////////////////
 
 	// Clear all channels
-	for (i = 0; i < MAX_CHAN; i++)
+	for (int i = 0; i < MAX_CHAN; i++)
 		chan[i].prn = 0;
 
 	// Clear satellite allocation flag
-	for (sv = 0; sv < MAX_SAT; sv++)
+	for (int sv = 0; sv < MAX_SAT; sv++)
 		allocatedSat[sv] = -1;
 
 	// Initial reception time
@@ -2318,7 +2315,7 @@ void gps_task(void* arg)
 	// Allocate visible satellites
 	allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[0].data(), elvmask);
 
-	for (i = 0; i < MAX_CHAN; i++)
+	for (int i = 0; i < MAX_CHAN; i++)
 	{
 		if (chan[i].prn > 0)
 			printf("%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,
@@ -2329,7 +2326,7 @@ void gps_task(void* arg)
 	// Receiver antenna gain pattern
 	////////////////////////////////////////////////////////////
 
-	for (i = 0; i < 37; i++)
+	for (int i = 0; i < 37; i++)
 		ant_pat[i] = pow(10.0, -ant_pat_db[i] / 20.0);
 
 	////////////////////////////////////////////////////////////
@@ -2342,7 +2339,7 @@ void gps_task(void* arg)
 	// Update receiver time
 	grx = incGpsTime(grx, 0.1);
 
-	for (iumd = 1; iumd < numd; iumd++)
+	for (int iumd = 1; iumd < numd; iumd++)
 	{
 		key = 0; // Initialize key input
 
@@ -2427,13 +2424,13 @@ void gps_task(void* arg)
 			}
 		}
 
-		for (i = 0; i < MAX_CHAN; i++)
+		for (int i = 0; i < MAX_CHAN; i++)
 		{
 			if (chan[i].prn > 0)
 			{
 				// Refresh code phase and data bit counters
 				range_t rho;
-				sv = chan[i].prn - 1;
+				int sv = chan[i].prn - 1;
 
 				// Current pseudorange
 				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[iumd].data());
@@ -2462,12 +2459,12 @@ void gps_task(void* arg)
 			}
 		}
 
-		for (isamp = 0; isamp < iq_buff_size; isamp++)
+		for (int isamp = 0; isamp < iq_buff_size; isamp++)
 		{
 			int i_acc = 0;
 			int q_acc = 0;
 
-			for (i = 0; i < MAX_CHAN; i++)
+			for (int i = 0; i < MAX_CHAN; i++)
 			{
 				if (chan[i].prn > 0)
 				{
@@ -2543,17 +2540,17 @@ void gps_task(void* arg)
 		// Write into FIFO
 		///////////////////////////////////////////////////////////
 
-		if (!s->gps.ready) {
+		if (!s->gps_ready) {
 			// Initialization has been done. Ready to create TX task.
 			printf("GPS signal generator is ready!\n");
-			s->gps.ready = true;
-			//* pthread_cond_signal(&(s->gps.initialization_done));
-			s->gps.initialization_done.notify_all();
+			s->gps_ready = true;
+
+			s->initialization_done.notify_all();
 		}
 
 		{
 			// Wait utill FIFO write is ready
-			std::unique_lock<std::mutex> lck(s->gps.mtx);
+			std::unique_lock<std::mutex> lck(s->fifo_mtx);
 			while (!s->fifo.is_write_ready()) {
 				s->fifo_write_ready.wait(lck);
 			}
@@ -2574,7 +2571,7 @@ void gps_task(void* arg)
 		if (igrx % 300 == 0) // Every 30 seconds
 		{
 			// Update navigation message
-			for (i = 0; i < MAX_CHAN; i++)
+			for (int i = 0; i < MAX_CHAN; i++)
 			{
 				if (chan[i].prn > 0)
 					generateNavMsg(grx, &chan[i], 0);
@@ -2582,7 +2579,7 @@ void gps_task(void* arg)
 
 			// Refresh ephemeris and subframes
 			// Quick and dirty fix. Need more elegant way.
-			for (sv = 0; sv < MAX_SAT; sv++)
+			for (int sv = 0; sv < MAX_SAT; sv++)
 			{
 				if (eph[ieph + 1][sv].vflg == 1)
 				{
@@ -2591,7 +2588,7 @@ void gps_task(void* arg)
 					{
 						ieph++;
 
-						for (i = 0; i < MAX_CHAN; i++)
+						for (int i = 0; i < MAX_CHAN; i++)
 						{
 							// Generate new subframes if allocated
 							if (chan[i].prn != 0)
@@ -2616,7 +2613,7 @@ void gps_task(void* arg)
 				printf("xyz = %11.1f, %11.1f, %11.1f\n", xyz[iumd][0], xyz[iumd][1], xyz[iumd][2]);
 				xyz2llh(xyz[iumd].data(), llh);
 				printf("llh = %11.6f, %11.6f, %11.1f\n", llh[0] * R2D, llh[1] * R2D, llh[2]);
-				for (i = 0; i < MAX_CHAN; i++)
+				for (int i = 0; i < MAX_CHAN; i++)
 				{
 					if (chan[i].prn > 0)
 						printf("%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,

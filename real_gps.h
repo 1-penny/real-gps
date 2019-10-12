@@ -1,12 +1,8 @@
 #pragma once
 
 #include <stdint.h>
-
 #include <vector>
 #include <array>
-
-//#include <memory>
-
 #include <thread>
 #include <mutex>
 #include <condition_variable>
@@ -40,6 +36,7 @@
 #define MAX_VEL 2.7 // 2.77 m/s = 10 km/h
 #define DEL_VEL 0.2
 
+// ∑¬’Ê≈‰÷√.
 struct option_t 
 {
 	option_t();
@@ -59,40 +56,37 @@ struct option_t
 	int path_loss_enable;
 };
 
-struct tx_t 
-{
-	tx_t() : dev(nullptr) {}
-
-	std::thread thread;
-	std::mutex mtx;
-
-	std::unique_ptr<Device> dev;
-	std::vector<int16_t> buffer;
-};
-
-struct gps_t 
-{
-	gps_t() : ready(false) {}
-
-	std::thread thread;
-	std::mutex mtx;
-
-	bool ready;
-	std::condition_variable initialization_done;
-};
-
+// ∑¬’Ê≥°æ∞.
 struct sim_t 
 {
 	sim_t();
 
+	int config(const std::vector<char*>& params);
+
+	bool is_finished_generation();
+
+	bool start_tx_task();
+	bool start_gps_task();
+
 	option_t opt;
 
-	tx_t tx;
-	gps_t gps;
+	std::thread tx_thread;
+	std::thread gps_thread;
+	
+	std::vector<int16_t> tx_buffer;
+
+	std::mutex init_mtx;
+	std::mutex fifo_mtx;
+
+	std::condition_variable initialization_done;
+	
+	bool gps_ready;
 
 	int status;
 	bool finished;
 	fifo_t fifo;
+	
+	std::unique_ptr<Device> device;
 
 	std::condition_variable fifo_read_ready;
 	std::condition_variable fifo_write_ready;
@@ -100,16 +94,8 @@ struct sim_t
 	double time;
 };
 
-
+/// print usage message.
 void usage(void);
 
-/// Task functions
-int start_tx_task(sim_t* s);
-int start_gps_task(sim_t* s);
-
-bool is_finished_generation(sim_t* s);
-
-
 /// Sim functions
-int sim_config(sim_t& s, const std::vector<char*>& params);
-int sim_init(sim_t& s);
+

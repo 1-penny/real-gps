@@ -32,7 +32,7 @@ int main(int argc, char* argv[])
 		usage();
 		exit(1);
 	}
-		
+
 	std::vector<char*> params(argc);
 	for (int i = 0; i < params.size(); i++) {
 		params[i] = argv[i];
@@ -41,53 +41,46 @@ int main(int argc, char* argv[])
 	sim_t s;
 
 	// Config simulator.
-	s.status = sim_config(s, params);
+	s.status = s.config(params);
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to config sim.\n");
 		return -1;
 	}
 
-	// Initialize simulator.
-	s.status = sim_init(s);
-	if (s.status != 0) {
-		fprintf(stderr, "Failed to init sim.\n");
-		return -1;
-	}
-
-	// Initializing device.
+	/// 初始化和配置 device.
 	printf("Opening and initializing device...\n");
-	
-	s.tx.dev.reset(Device::make("", { {"verbose", "1"} }));
-	if (!s.tx.dev) {
+
+	s.device.reset(Device::make("file", { {"verbose", "1"} }));
+	if (!s.device) {
 		fprintf(stderr, "Failed to create device\n");
 		return -1;
 	}
 
 	std::map<std::string, std::string> dev_params = {
-		{"filename", "c:/data/gpssend_7.bin"}, 
+		{"filename", "c:/data/gpssend_7.bin"},
 		{"tx.freq", "1575420000"},
 		{"tx.rate", "2600000"},
 		{"tx.gain", "40"}
 	};
-	if (!s.tx.dev->set_params(dev_params)) {
+	if (!s.device->set_params(dev_params)) {
 		fprintf(stderr, "Failed to initialize device\n");
 		return -1;
 	}
 
-	// Start GPS task.
-	s.status = start_gps_task(&s);
-	if (s.status < 0) {
+	/// 启动 GPS 任务.
+	if (s.start_gps_task()) {
+		printf("Creating GPS task...\n");
+	}
+	else {
 		fprintf(stderr, "Failed to start GPS task.\n");
 		return -1;
 	}
-	else
-		printf("Creating GPS task...\n");
 
-	// Wait until GPS task is initialized
+	/// 等待 GPS 任务初始化完成.
 	{
-		std::unique_lock<std::mutex> lck(s.tx.mtx);
-		while (!s.gps.ready) {
-			s.gps.initialization_done.wait(lck);
+		std::unique_lock<std::mutex> lock(s.init_mtx);
+		while (!s.gps_ready) {
+			s.initialization_done.wait(lock);
 		}
 	}
 
@@ -97,31 +90,29 @@ int main(int argc, char* argv[])
 	}
 
 	// open the device
-	if (! s.tx.dev->open()) {
+	if (!s.device->open()) {
 		return -1;
 	}
 
-	// Start TX task
-	s.status = start_tx_task(&s);
-	if (s.status < 0) {
+	/// 启动发送任务.
+	if (s.start_tx_task()) {
+		printf("Creating TX task...\n");
+	}
+	else {
 		fprintf(stderr, "Failed to start TX task.\n");
 		return -1;
 	}
-	else
-		printf("Creating TX task...\n");
-	
+
 	// Running...
 	printf("Running...\n");
 	printf("Press 'q' to quit.\n");
 
-	// Wainting for TX task to complete.
-	s.tx.thread.join();
-	s.gps.thread.join();
+	// 等待发送任务、GPS任务完成.
+	s.tx_thread.join();
+	s.gps_thread.join();
 
 	printf("\nDone!\n");
 
-//out:
-	s.tx.dev->close();
 	return 0;
 }
 
@@ -149,11 +140,11 @@ void usage(void)
 	return;
 }
 
-int sim_config(sim_t& s, const std::vector<char*> & params)
+int sim_t::config(const std::vector<char*>& params)
 {
 	int argc = params.size();
 
-	char * argv[32];
+	char* argv[32];
 	for (int i = 0; i < argc; i++) {
 		argv[i] = params[i];
 	}
@@ -169,38 +160,38 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 		switch (result)
 		{
 		case 'e':
-			strcpy(s.opt.navfile, optarg);
+			strcpy(opt.navfile, optarg);
 			break;
 		case 'y':
-			strcpy(s.opt.almfile, optarg);
+			strcpy(opt.almfile, optarg);
 			break;
 		case 'u':
-			strcpy(s.opt.umfile, optarg);
-			s.opt.nmeaGGA = FALSE;
-			s.opt.staticLocationMode = FALSE;
+			strcpy(opt.umfile, optarg);
+			opt.nmeaGGA = FALSE;
+			opt.staticLocationMode = FALSE;
 			break;
 		case 'g':
-			strcpy(s.opt.umfile, optarg);
-			s.opt.nmeaGGA = TRUE;
-			s.opt.staticLocationMode = FALSE;
+			strcpy(opt.umfile, optarg);
+			opt.nmeaGGA = TRUE;
+			opt.staticLocationMode = FALSE;
 			break;
 		case 'l':
 			// Static geodetic coordinates input mode
 			// Added by scateu@gmail.com
-			s.opt.nmeaGGA = FALSE;
-			s.opt.staticLocationMode = TRUE;
-			sscanf(optarg, "%lf,%lf,%lf", &s.opt.llh[0], &s.opt.llh[1], &s.opt.llh[2]);
-			s.opt.llh[0] /= R2D; // convert to RAD
-			s.opt.llh[1] /= R2D; // convert to RAD
+			opt.nmeaGGA = FALSE;
+			opt.staticLocationMode = TRUE;
+			sscanf(optarg, "%lf,%lf,%lf", &opt.llh[0], &opt.llh[1], &opt.llh[2]);
+			opt.llh[0] /= R2D; // convert to RAD
+			opt.llh[1] /= R2D; // convert to RAD
 			break;
 		case 'T':
-			s.opt.timeoverwrite = TRUE;
+			opt.timeoverwrite = TRUE;
 			if (strncmp(optarg, "now", 3) == 0)
 			{
 				time_t timer;
 				struct tm* gmt;
 
-				time(&timer);
+				::time(&timer);
 				gmt = gmtime(&timer);
 
 				t0.y = gmt->tm_year + 1900;
@@ -210,7 +201,7 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 				t0.mm = gmt->tm_min;
 				t0.sec = (double)gmt->tm_sec;
 
-				date2gps(&t0, &s.opt.g0);
+				date2gps(&t0, &opt.g0);
 
 				break;
 			}
@@ -223,7 +214,7 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 				return -1;
 			}
 			t0.sec = floor(t0.sec);
-			date2gps(&t0, &s.opt.g0);
+			date2gps(&t0, &opt.g0);
 			break;
 		case 'd':
 			duration = atof(optarg);
@@ -232,7 +223,7 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 				printf("ERROR: Invalid duration.\n");
 				return -1;
 			}
-			s.opt.iduration = (int)(duration * 10.0 + 0.5);
+			opt.iduration = (int)(duration * 10.0 + 0.5);
 			break;
 		case 'x':
 			xb_board = atoi(optarg);
@@ -243,13 +234,13 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 				txvga1 *= -1;
 			break;
 		case 'i':
-			s.opt.interactive = TRUE;
+			opt.interactive = TRUE;
 			break;
 		case 'I':
-			s.opt.iono_enable = FALSE; // Disable ionospheric correction
+			opt.iono_enable = FALSE; // Disable ionospheric correction
 			break;
 		case 'p':
-			s.opt.path_loss_enable = FALSE; // Disable path loss
+			opt.path_loss_enable = FALSE; // Disable path loss
 			break;
 		case ':':
 		case '?':
@@ -260,13 +251,13 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 		}
 	}
 
-	if (s.opt.navfile[0] == 0)
+	if (opt.navfile[0] == 0)
 	{
 		printf("ERROR: GPS ephemeris file is not specified.\n");
 		return 1;
 	}
 
-	if (s.opt.umfile[0] == 0 && !s.opt.staticLocationMode)
+	if (opt.umfile[0] == 0 && !opt.staticLocationMode)
 	{
 		printf("ERROR: User motion file / NMEA GGA stream is not specified.\n");
 		printf("You may use -l to specify the static location directly.\n");
@@ -276,42 +267,39 @@ int sim_config(sim_t& s, const std::vector<char*> & params)
 	return 0;
 }
 
-int sim_init(sim_t& s)
+
+sim_t::sim_t() : fifo(FIFO_LENGTH, NUM_IQ_SAMPLES)
 {
+	finished = false;
+	status = 0;
+	time = 0.0;
+	gps_ready = false;
+
 	// Allocate TX buffer to hold each block of samples to transmit.
-	s.tx.buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
+	tx_buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
 
-	if (s.tx.buffer.size() != SAMPLES_PER_BUFFER * 2) {
+	if (tx_buffer.size() != SAMPLES_PER_BUFFER * 2) {
 		fprintf(stderr, "Failed to allocate TX buffer.\n");
-		return -1;
 	}
-
-
-	return 0;
 }
 
-
-
-
-bool is_finished_generation(sim_t* s)
+bool sim_t::is_finished_generation()
 {
-	return s->finished;
+	return finished;
 }
 
 
-
-int start_tx_task(sim_t* s)
+bool sim_t::start_tx_task()
 {
-	s->tx.thread = std::thread(tx_task, s);
-	return 1;
+	tx_thread = std::thread(tx_task, this);
+	return true;
 }
 
-int start_gps_task(sim_t* s)
+bool sim_t::start_gps_task()
 {
-	s->gps.thread = std::thread(gps_task, s);
-	return 1;
+	gps_thread = std::thread(gps_task, this);
+	return true;
 }
-
 
 option_t::option_t()
 {
@@ -331,11 +319,4 @@ option_t::option_t()
 	timeoverwrite = FALSE;
 	iono_enable = TRUE;
 	path_loss_enable = TRUE;
-}
-
-sim_t::sim_t() : fifo(FIFO_LENGTH, NUM_IQ_SAMPLES)
-{
-	finished = false;
-	status = 0;
-	time = 0.0;
 }
