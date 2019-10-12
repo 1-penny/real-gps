@@ -28,10 +28,11 @@ bool UsrpDevice::initialize()
 	return m_usrp.get() != nullptr;
 }
 
-
-
 bool UsrpDevice::open()
 {
+	if (!m_usrp)
+		return false;
+
 	if (! is_open()) {
 		uhd::stream_args_t tx_arg;
 		tx_arg.cpu_format = "sc16";

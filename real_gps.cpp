@@ -57,14 +57,14 @@ int main(int argc, char* argv[])
 	// Initializing device.
 	printf("Opening and initializing device...\n");
 	
-	s.tx.dev.reset(Device::make("usrp", { {"verbose", "1"} }));
+	s.tx.dev.reset(Device::make("", { {"verbose", "1"} }));
 	if (!s.tx.dev) {
 		fprintf(stderr, "Failed to create device\n");
 		return -1;
 	}
 
 	std::map<std::string, std::string> dev_params = {
-		//{"filename", "c:/data/gpssend_7.bin"}, 
+		{"filename", "c:/data/gpssend_7.bin"}, 
 		{"tx.freq", "1575420000"},
 		{"tx.rate", "2600000"},
 		{"tx.gain", "40"}
@@ -73,11 +73,6 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Failed to initialize device\n");
 		return -1;
 	}
-	//s.status = s.tx.dev->init();
-	//if (s.status != 0) {
-	//	fprintf(stderr, "Failed to initialize device\n");
-	//	goto out;
-	//}
 
 	// Start GPS task.
 	s.status = start_gps_task(&s);

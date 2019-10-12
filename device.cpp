@@ -2,6 +2,7 @@
 
 #include "file_device.h"
 #include "usrp_device.h"
+#include "null_device.h"
 
 #include <boost/algorithm/string.hpp>
 namespace algo = boost::algorithm;
@@ -42,7 +43,7 @@ Device* Device::make(const std::string& name, const std::map<std::string, std::s
 	std::unique_ptr<Device> ptr;
 
 	if (algo::iequals(name, "")) {
-		ptr.reset(new Device);
+		ptr.reset(new NullDevice);
 	}
 	else if (algo::iequals(name, "file")) {
 		ptr.reset(new FileDevice());
