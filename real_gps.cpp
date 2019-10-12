@@ -11,6 +11,7 @@
 #include <math.h>
 
 #include <fstream>
+#include "device.h"
 
 // for _getch used in Windows runtime.
 #ifdef _WIN32
@@ -43,36 +44,46 @@ int main(int argc, char* argv[])
 	s.status = sim_config(s, params);
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to config sim.\n");
-		goto out;
+		return -1;
 	}
 
 	// Initialize simulator.
 	s.status = sim_init(s);
 	if (s.status != 0) {
 		fprintf(stderr, "Failed to init sim.\n");
-		goto out;
+		return -1;
 	}
 
 	// Initializing device.
 	printf("Opening and initializing device...\n");
 	
-	s.tx.dev.reset(new FileDevice());
+	s.tx.dev.reset(Device::make("file", 
+		{ {"filename", "c:/data/gpssend_7.bin"}, {"verbose", "1"} }));
 	if (!s.tx.dev) {
 		fprintf(stderr, "Failed to create device\n");
-		goto out;
+		return -1;
 	}
 
-	s.status = s.tx.dev->init();
-	if (s.status != 0) {
+	std::map<std::string, std::string> dev_params = {
+		{"tx.freq", "1575420000"},
+		{"tx.rate", "2600000"},
+		{"tx.gain", "30"}
+	};
+	if (!s.tx.dev->set_params(dev_params)) {
 		fprintf(stderr, "Failed to initialize device\n");
-		goto out;
+		return -1;
 	}
+	//s.status = s.tx.dev->init();
+	//if (s.status != 0) {
+	//	fprintf(stderr, "Failed to initialize device\n");
+	//	goto out;
+	//}
 
 	// Start GPS task.
 	s.status = start_gps_task(&s);
 	if (s.status < 0) {
 		fprintf(stderr, "Failed to start GPS task.\n");
-		goto out;
+		return -1;
 	}
 	else
 		printf("Creating GPS task...\n");
@@ -91,16 +102,15 @@ int main(int argc, char* argv[])
 	}
 
 	// open the device
-	s.status = s.tx.dev->open();
-	if (s.status != 0) {
-		goto out;
+	if (! s.tx.dev->open()) {
+		return -1;
 	}
 
 	// Start TX task
 	s.status = start_tx_task(&s);
 	if (s.status < 0) {
 		fprintf(stderr, "Failed to start TX task.\n");
-		goto out;
+		return -1;
 	}
 	else
 		printf("Creating TX task...\n");
@@ -115,7 +125,7 @@ int main(int argc, char* argv[])
 
 	printf("\nDone!\n");
 
-out:
+//out:
 	s.tx.dev->close();
 	return 0;
 }
