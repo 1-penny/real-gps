@@ -33,6 +33,9 @@
     <ClCompile Include="file_device.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="fifo.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="getopt.h">
@@ -51,6 +54,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="file_device.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="fifo.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

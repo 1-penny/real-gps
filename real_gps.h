@@ -13,6 +13,7 @@
 
 #include "gpssim.h"
 #include "device.h"
+#include "fifo.h"
 
 #define TX_FREQUENCY	1575420000
 #define TX_SAMPLERATE	2600000
@@ -60,9 +61,7 @@ struct option_t
 
 struct tx_t 
 {
-	tx_t() : dev(nullptr)
-	{
-	}
+	tx_t() : dev(nullptr) {}
 
 	std::thread thread;
 	std::mutex mtx;
@@ -73,9 +72,7 @@ struct tx_t
 
 struct gps_t 
 {
-	gps_t() : ready(false) 
-	{
-	}
+	gps_t() : ready(false) {}
 
 	std::thread thread;
 	std::mutex mtx;
@@ -95,9 +92,7 @@ struct sim_t
 
 	int status;
 	bool finished;
-	std::vector<int16_t> fifo;
-	long head, tail;
-	size_t sample_length;
+	fifo_t fifo;
 
 	std::condition_variable fifo_read_ready;
 	std::condition_variable fifo_write_ready;
@@ -112,14 +107,7 @@ void usage(void);
 int start_tx_task(sim_t* s);
 int start_gps_task(sim_t* s);
 
-/// FIFO functions.
-size_t get_sample_length(sim_t* s);
-size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s);
 bool is_finished_generation(sim_t* s);
-int is_fifo_write_ready(sim_t* s);
-
-
-/// Device functions
 
 
 /// Sim functions

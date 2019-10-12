@@ -26,14 +26,14 @@ void tx_task(void* arg)
 			
 			{
 				std::unique_lock<std::mutex> lck(s->gps.mtx);
-				while (get_sample_length(s) == 0 && ! is_finished_generation(s))
+				while (s->fifo.get_sample_length() == 0 && ! is_finished_generation(s))
 				{
 					s->fifo_read_ready.wait(lck);
 				}
 				// assert(get_sample_length(s) > 0);
 
-				samples_populated = fifo_read(tx_buffer_current,
-					buffer_samples_remaining, s);
+				samples_populated = s->fifo.read(tx_buffer_current,
+					buffer_samples_remaining);
 			}
 
 			s->fifo_write_ready.notify_all();
@@ -62,7 +62,7 @@ void tx_task(void* arg)
 		s->tx.dev->send(s->tx.buffer.data(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
 		//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 
-		if (is_fifo_write_ready(s)) {
+		if (s->fifo.is_write_ready()) {
 			/*
 			printf("\rTime = %4.1f", s->time);
 			s->time += 0.1;

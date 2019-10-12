@@ -2554,17 +2554,14 @@ void gps_task(void* arg)
 		{
 			// Wait utill FIFO write is ready
 			std::unique_lock<std::mutex> lck(s->gps.mtx);
-			while (!is_fifo_write_ready(s)) {
+			while (!s->fifo.is_write_ready()) {
 				s->fifo_write_ready.wait(lck);
 			}
 		}
 
 		// Write into FIFO
-		memcpy(&(s->fifo[s->head * 2]), iq_buff.data(), NUM_IQ_SAMPLES * 2 * sizeof(short));
+		s->fifo.write(iq_buff.data(), NUM_IQ_SAMPLES);
 
-		s->head += (long)NUM_IQ_SAMPLES;
-		if (s->head >= FIFO_LENGTH)
-			s->head -= FIFO_LENGTH;
 		//* pthread_cond_signal(&(s->fifo_read_ready));
 		s->fifo_read_ready.notify_all();
 

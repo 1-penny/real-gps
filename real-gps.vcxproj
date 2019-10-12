@@ -128,6 +128,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="device.cpp" />
+    <ClCompile Include="fifo.cpp" />
     <ClCompile Include="file_device.cpp" />
     <ClCompile Include="gps_tx.cpp" />
     <ClCompile Include="getopt.cpp" />
@@ -136,6 +137,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="device.h" />
+    <ClInclude Include="fifo.h" />
     <ClInclude Include="file_device.h" />
     <ClInclude Include="gps_tx.h" />
     <ClInclude Include="getopt.h" />
