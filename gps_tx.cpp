@@ -27,7 +27,7 @@ void tx_task(void* arg)
 			/// µÈ´ý FIFO ¿É¶ÁÈ¡.
 			{
 				std::unique_lock<std::mutex> lck(s->fifo_mtx);
-				while (s->fifo.get_sample_length() == 0 && !s->is_finished_generation()) {
+				while (!s->fifo.is_read_ready() && !s->is_finished_generation()) {
 					s->fifo_read_ready.wait(lck);
 				}
 

@@ -14,5 +14,5 @@
 ## refactor-1013
 
 * [ok] [feature] 增加 Null device（模拟真实的设备）.
-* TODO [refactor] 修改 fifo 实现以及相关部分.
+* [ok] [refactor] 修改 fifo 实现以及相关部分.
 
