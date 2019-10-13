@@ -19,8 +19,8 @@ void tx_task(void* arg)
 	size_t samples_populated;
 
 	while (true) {
-		int16_t* tx_buffer_current = s->tx_buffer.data();
-		unsigned int buffer_samples_remaining = SAMPLES_PER_BUFFER;
+		fifo_t::data_type * tx_buffer_current = s->tx_buffer.data();
+		unsigned int buffer_samples_remaining = s->tx_buffer.size();
 
 		while (buffer_samples_remaining > 0) {
 			
@@ -56,10 +56,10 @@ void tx_task(void* arg)
 #endif
 			// Advance the buffer pointer.
 			buffer_samples_remaining -= (unsigned int)samples_populated;
-			tx_buffer_current += (2 * samples_populated);
+			tx_buffer_current += samples_populated;
 		}
 
-		s->device->send(s->tx_buffer.data(), SAMPLES_PER_BUFFER, 4, TIMEOUT_MS);
+		s->device->send(s->tx_buffer.data(), s->tx_buffer.size(), 4, TIMEOUT_MS);
 		//bladerf_sync_tx(s->tx.dev, s->tx.buffer, SAMPLES_PER_BUFFER, NULL, TIMEOUT_MS);
 
 		if (s->fifo.is_write_ready()) {

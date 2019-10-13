@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <complex>
 #include <vector>
 #include <array>
 #include <thread>
@@ -73,7 +74,7 @@ struct sim_t
 	std::thread tx_thread;
 	std::thread gps_thread;
 	
-	std::vector<int16_t> tx_buffer;
+	std::vector<fifo_t::data_type> tx_buffer;
 
 	std::mutex init_mtx;
 	std::mutex fifo_mtx;

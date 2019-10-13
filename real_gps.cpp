@@ -274,9 +274,9 @@ sim_t::sim_t() : fifo(FIFO_LENGTH, NUM_IQ_SAMPLES)
 	gps_ready = false;
 
 	// Allocate TX buffer to hold each block of samples to transmit.
-	tx_buffer.resize(SAMPLES_PER_BUFFER * 2); // for 16-bit I and Q samples
+	tx_buffer.resize(SAMPLES_PER_BUFFER); //NUM_IQ_SAMPLES);//  for 16-bit I and Q samples
 
-	if (tx_buffer.size() != SAMPLES_PER_BUFFER * 2) {
+	if (tx_buffer.size() > 0) {
 		fprintf(stderr, "Failed to allocate TX buffer.\n");
 	}
 }
