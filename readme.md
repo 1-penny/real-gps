@@ -11,7 +11,6 @@
 
 # v0.0.2  
 
-
 ## refactor-1013
 
 * [ok] [feature] 增加 Null device（模拟真实的设备）.

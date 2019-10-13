@@ -167,7 +167,8 @@ typedef struct
 	int dtlsf,dn,wnlsf;
 } ionoutc_t;
 
-typedef struct
+// æ‡¿Î£®∫¨Œ±æ‡µ»£©–≈œ¢.
+struct range_t
 {
 	gpstime_t g;
 	double range; // pseudorange
@@ -175,10 +176,12 @@ typedef struct
 	double d; // geometric distance
 	double azel[2];
 	double iono_delay;
-} range_t;
+};
 
-/*! \brief Structure representing a Channel */
-typedef struct
+/**
+ * \brief Structure representing a Channel 
+ */
+struct channel_t
 {
 	int prn;	/*< PRN Number */
 	int ca[CA_SEQ_LEN]; /*< C/A Sequence */
@@ -202,7 +205,7 @@ typedef struct
 	int codeCA;	/*!< current C/A code */
 	double azel[2];
 	range_t rho0;
-} channel_t;
+};
 
 void date2gps(const datetime_t *t, gpstime_t *g);
 

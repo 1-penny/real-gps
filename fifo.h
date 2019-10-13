@@ -19,7 +19,7 @@ public:
 
 	size_t write(int16_t* samples, size_t sample_num);
 
-	int is_write_ready();
+	bool is_write_ready();
 	
 private:
 	std::vector<int16_t> fifo;

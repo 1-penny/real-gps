@@ -42,7 +42,7 @@ Device* Device::make(const std::string& name, const std::map<std::string, std::s
 {
 	std::unique_ptr<Device> ptr;
 
-	if (algo::iequals(name, "")) {
+	if (algo::iequals(name, "") || algo::iequals(name, "null")) {
 		ptr.reset(new NullDevice);
 	}
 	else if (algo::iequals(name, "file")) {

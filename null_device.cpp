@@ -15,15 +15,27 @@ NullDevice::NullDevice()
 	m_rate = -1;
 }
 
+NullDevice::~NullDevice()
+{
+	close();
+}
+
 bool NullDevice::open()
 {
-	m_open = true;
+	if (!is_open()) {
+		printf("device : open \n");
+		m_open = true;
+	}
+	
 	return is_open();
 }
 
 void NullDevice::close()
 {
-	m_open = false;
+	if (m_open) {
+		printf("device : close \n");
+		m_open = false;
+	}
 }
 
 bool NullDevice::is_open()

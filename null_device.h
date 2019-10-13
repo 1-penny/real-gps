@@ -6,6 +6,7 @@ class NullDevice : public Device
 {
 public:
 	NullDevice();
+	virtual ~NullDevice();
 
 public:
 	virtual bool open();

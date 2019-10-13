@@ -65,55 +65,8 @@ size_t fifo_t::write(int16_t* buffer, size_t samples)
 	return samples;
 }
 
-int fifo_t::is_write_ready()
+bool fifo_t::is_write_ready()
 {
-	int status = 0;
-
 	int sample_len = get_sample_length();
-	if (sample_len < free_length/*NUM_IQ_SAMPLES*/)
-		status = 1;
-
-	return(status);
+	return (sample_len < free_length/*NUM_IQ_SAMPLES*/);
 }
-
-//
-//size_t get_sample_length(sim_t* s)
-//{
-//	long length;
-//
-//	length = s->head - s->tail;
-//	if (length < 0)
-//		length += FIFO_LENGTH;
-//
-//	return((size_t)length);
-//}
-//
-//size_t fifo_read(int16_t* buffer, size_t samples, sim_t* s)
-//{
-//	size_t length;
-//	size_t samples_remaining;
-//	int16_t* buffer_current = buffer;
-//
-//	length = get_sample_length(s);
-//
-//	if (length < samples)
-//		samples = length;
-//
-//	length = samples; // return value
-//
-//	samples_remaining = FIFO_LENGTH - s->tail;
-//
-//	if (samples > samples_remaining) {
-//		memcpy(buffer_current, &(s->fifo[s->tail * 2]), samples_remaining * sizeof(int16_t) * 2);
-//		s->tail = 0;
-//		buffer_current += samples_remaining * 2;
-//		samples -= samples_remaining;
-//	}
-//
-//	memcpy(buffer_current, &(s->fifo[s->tail * 2]), samples * sizeof(int16_t) * 2);
-//	s->tail += (long)samples;
-//	if (s->tail >= FIFO_LENGTH)
-//		s->tail -= FIFO_LENGTH;
-//
-//	return(length);
-//}

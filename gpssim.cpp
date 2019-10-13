@@ -98,7 +98,7 @@ double ant_pat_db[37] = {
 	31.56
 };
 
-int allocatedSat[MAX_SAT];
+int allocatedSat[MAX_SAT]; // 卫星的已分配标志.(卫星是否已经分配给某个通道了)
 
 /*! \brief Subtract two vectors of double
  *  \param[out] y Result of subtraction
@@ -1471,7 +1471,9 @@ double ionosphericDelay(const ionoutc_t* ionoutc, gpstime_t g, double* llh, doub
 	return (iono_delay);
 }
 
-/*! \brief Compute range between a satellite and the receiver
+/**
+ * 计算卫星与接收机之间的伪距信息（range_t）
+ * \brief Compute range between a satellite and the receiver
  *  \param[out] rho The computed range
  *  \param[in] eph Ephemeris data of the satellite
  *  \param[in] g GPS time at time of receiving the signal
@@ -1536,7 +1538,9 @@ void computeRange(range_t* rho, ephem_t eph, ionoutc_t* ionoutc, gpstime_t g, do
 	return;
 }
 
-/*! \brief Compute the code phase for a given channel (satellite)
+/**
+ * 计算当前通道（卫星）的码相位.
+ *  \brief Compute the code phase for a given channel (satellite)
  *  \param chan Channel on which we operate (is updated)
  *  \param[in] rho1 Current range, after \a dt has expired
  *  \param[in dt delta-t (time difference) in seconds
@@ -1811,6 +1815,12 @@ int checkSatVisibility(ephem_t eph, gpstime_t g, double* xyz, double elvMask, do
 	return (0); // Invisible
 }
 
+/**
+ * 分配通道.
+ * 根据当前接收机位置、卫星星历等信息，为各个通道分配卫星.
+ *
+ * @return 分配的卫星通道数量.
+ */
 int allocateChannel(channel_t* chan, ephem_t* eph, ionoutc_t ionoutc, almanac_t* alm, gpstime_t grx, double* xyz, double elvMask)
 {
 	int nsat = 0;
@@ -1967,9 +1977,8 @@ void gps_task(void* arg)
 	std::vector<short> iq_buff;
 
 	gpstime_t grx;
-	double delt;
+	double delt = 1.0 / (double)TX_SAMPLERATE;
 
-	int iumd;
 	int numd;
 	char umfile[MAX_CHAR];
 	std::vector<std::array<double, 3>> xyz;
@@ -1979,7 +1988,7 @@ void gps_task(void* arg)
 
 	char navfile[MAX_CHAR];
 
-	int iq_buff_size;
+	int iq_buff_size = NUM_IQ_SAMPLES;
 
 	int gain[MAX_CHAN];
 	double path_loss;
@@ -2034,14 +2043,8 @@ void gps_task(void* arg)
 	iduration = s->opt.iduration;
 	verb = s->opt.verb;
 
-	iq_buff_size = NUM_IQ_SAMPLES;
-
-	delt = 1.0 / (double)TX_SAMPLERATE;
-
 	interactive = s->opt.interactive;
-
 	timeoverwrite = s->opt.timeoverwrite;
-
 	ionoutc.enable = s->opt.iono_enable;
 
 	gmin = g0;
@@ -2058,15 +2061,15 @@ void gps_task(void* arg)
 		printf("ERROR: Faild to allocate user motion array.\n");
 		goto exit;
 	}
-	
+
 	if (!staticLocationMode)
 	{
 		// Read user motion file
 		if (nmeaGGA == TRUE)
-			numd = readNmeaGGA((double**) xyz.data(), umfile);
+			numd = readNmeaGGA((double**)xyz.data(), umfile);
 		else
 		{
-			numd = readUserMotion((double**) xyz.data(), umfile);
+			numd = readUserMotion((double**)xyz.data(), umfile);
 		}
 
 		if (numd == -1)
@@ -2093,7 +2096,7 @@ void gps_task(void* arg)
 
 		numd = iduration;
 
-		for (iumd = 1; iumd < numd; iumd++)
+		for (int iumd = 1; iumd < numd; iumd++)
 		{
 			xyz[iumd][0] = xyz[0][0];
 			xyz[iumd][1] = xyz[0][1];
@@ -2113,7 +2116,7 @@ void gps_task(void* arg)
 	printf("llh = %11.6f, %11.6f, %11.1f\n", llh[0] * R2D, llh[1] * R2D, llh[2]);
 
 	////////////////////////////////////////////////////////////
-	// Read ephemeris
+	// 读取星历. Read ephemeris
 	////////////////////////////////////////////////////////////
 
 	neph = readRinexNavAll(eph, &ionoutc, navfile);
@@ -2220,7 +2223,7 @@ void gps_task(void* arg)
 		t0.y, t0.m, t0.d, t0.hh, t0.mm, t0.sec, g0.week, g0.sec);
 	printf("Duration = %.1f [sec]\n", ((double)numd) / 10.0);
 
-	// Select the current set of ephemerides
+	// 选择当前星历集. Select the current set of ephemerides
 	ieph = -1;
 
 	for (int i = 0; i < neph; i++)
@@ -2249,7 +2252,7 @@ void gps_task(void* arg)
 	}
 
 	////////////////////////////////////////////////////////////
-	// Read almanac
+	// 读取历书. Read almanac
 	////////////////////////////////////////////////////////////
 
 	nalm = readAlmanac(alm, almfile);
@@ -2286,7 +2289,7 @@ void gps_task(void* arg)
 	}
 
 	////////////////////////////////////////////////////////////
-	// Baseband signal buffer and output file
+	// 分配基带信号缓冲区. Baseband signal buffer and output file
 	////////////////////////////////////////////////////////////
 
 	// Allocate I/Q buffer
@@ -2298,7 +2301,7 @@ void gps_task(void* arg)
 	}
 
 	////////////////////////////////////////////////////////////
-	// Initialize channels
+	// 初始化各个通道. Initialize channels
 	////////////////////////////////////////////////////////////
 
 	// Clear all channels
@@ -2312,26 +2315,28 @@ void gps_task(void* arg)
 	// Initial reception time
 	grx = incGpsTime(g0, 0.0);
 
-	// Allocate visible satellites
+	// 分配通道. Allocate visible satellites
 	allocateChannel(chan, eph[ieph], ionoutc, alm, grx, xyz[0].data(), elvmask);
 
 	for (int i = 0; i < MAX_CHAN; i++)
 	{
+		// 打印分配信息.
 		if (chan[i].prn > 0)
 			printf("%02d %6.1f %5.1f %11.1f %5.1f\n", chan[i].prn,
 				chan[i].azel[0] * R2D, chan[i].azel[1] * R2D, chan[i].rho0.d, chan[i].rho0.iono_delay);
 	}
 
 	////////////////////////////////////////////////////////////
-	// Receiver antenna gain pattern
-	////////////////////////////////////////////////////////////
+	/// 设置接收机天线增益. 
+	/// Receiver antenna gain pattern
 
 	for (int i = 0; i < 37; i++)
 		ant_pat[i] = pow(10.0, -ant_pat_db[i] / 20.0);
 
 	////////////////////////////////////////////////////////////
-	// Generate baseband signals
+	// 产生基带信号. Generate baseband signals
 	////////////////////////////////////////////////////////////
+
 #ifndef _WIN32	
 	changemode(1); // non-canonical mode & no echo
 #endif
@@ -2424,6 +2429,9 @@ void gps_task(void* arg)
 			}
 		}
 
+		////////////////////////////////////////////////////////////
+		/// 1.更新所有通道状态.
+
 		for (int i = 0; i < MAX_CHAN; i++)
 		{
 			if (chan[i].prn > 0)
@@ -2432,19 +2440,19 @@ void gps_task(void* arg)
 				range_t rho;
 				int sv = chan[i].prn - 1;
 
-				// Current pseudorange
+				// 1.1.计算当前伪距. Current pseudorange
 				computeRange(&rho, eph[ieph][sv], &ionoutc, grx, xyz[iumd].data());
 				chan[i].azel[0] = rho.azel[0];
 				chan[i].azel[1] = rho.azel[1];
 
-				// Update code phase and data bit counters
+				// 1.2.更新码相位和数据比特计数. Update code phase and data bit counters
 				computeCodePhase(&chan[i], rho, 0.1);
 #ifndef FLOAT_CARR_PHASE
 				chan[i].carr_phasestep = (int)(512 * 65536.0 * chan[i].f_carr * delt);
 				// chan[i].carr_phasestep = (int)round(512.0 * 65536.0 * chan[i].f_carr * delt);
 #endif
 
-				// Path loss
+				// 1.3.更新路径衰减. Path loss
 				path_loss = 20200000.0 / rho.d;
 
 				// Receiver antenna gain
@@ -2459,6 +2467,9 @@ void gps_task(void* arg)
 			}
 		}
 
+		////////////////////////////////////////////////////////////
+		/// 2.根据通道状态，更新所有样点.(在当前时段 0.1s 内)
+
 		for (int isamp = 0; isamp < iq_buff_size; isamp++)
 		{
 			int i_acc = 0;
@@ -2468,6 +2479,7 @@ void gps_task(void* arg)
 			{
 				if (chan[i].prn > 0)
 				{
+					// 2.1 计算当前数据，并输出.
 #ifdef FLOAT_CARR_PHASE
 					iTable = (int)floor(chan[i].carr_phase * 512.0);
 #else
@@ -2481,7 +2493,7 @@ void gps_task(void* arg)
 					i_acc += ip;
 					q_acc += qp;
 
-					// Update code phase
+					// 2.2. 更新码相位. Update code phase
 					chan[i].code_phase += chan[i].f_code * delt;
 
 					if (chan[i].code_phase >= CA_SEQ_LEN)
@@ -2513,7 +2525,7 @@ void gps_task(void* arg)
 					// Set currnt code chip
 					chan[i].codeCA = chan[i].ca[(int)chan[i].code_phase] * 2 - 1;
 
-					// Update carrier phase
+					// 2.3.更新载波相位.Update carrier phase
 #ifdef FLOAT_CARR_PHASE
 					chan[i].carr_phase += chan[i].f_carr * delt;
 
@@ -2537,34 +2549,34 @@ void gps_task(void* arg)
 		}
 
 		////////////////////////////////////////////////////////////
-		// Write into FIFO
-		///////////////////////////////////////////////////////////
+		/// 同步及写入 FIFO.
+		/// Write into FIFO
 
 		if (!s->gps_ready) {
+			// 初始化完成，可以启动发射任务. 
 			// Initialization has been done. Ready to create TX task.
 			printf("GPS signal generator is ready!\n");
+			
 			s->gps_ready = true;
-
 			s->initialization_done.notify_all();
 		}
 
+		// 等待 FIFO 可写入. Wait utill FIFO write is ready
 		{
-			// Wait utill FIFO write is ready
 			std::unique_lock<std::mutex> lck(s->fifo_mtx);
 			while (!s->fifo.is_write_ready()) {
 				s->fifo_write_ready.wait(lck);
 			}
 		}
 
-		// Write into FIFO
+		// 写入 FIFO. Write into FIFO
 		s->fifo.write(iq_buff.data(), NUM_IQ_SAMPLES);
 
-		//* pthread_cond_signal(&(s->fifo_read_ready));
 		s->fifo_read_ready.notify_all();
 
-		//
-		// Update navigation message and channel allocation every 30 seconds
-		//
+		////////////////////////////////////////////////////////////
+		/// 每30秒更新导航信息和通道分配.
+		/// Update navigation message and channel allocation every 30 seconds
 
 		igrx = (int)(grx.sec * 10.0 + 0.5);
 

@@ -24,18 +24,18 @@ void tx_task(void* arg)
 
 		while (buffer_samples_remaining > 0) {
 			
+			/// 等待 FIFO 可读取.
 			{
 				std::unique_lock<std::mutex> lck(s->fifo_mtx);
-				while (s->fifo.get_sample_length() == 0 && ! s->is_finished_generation())
-				{
+				while (s->fifo.get_sample_length() == 0 && !s->is_finished_generation()) {
 					s->fifo_read_ready.wait(lck);
 				}
-				// assert(get_sample_length(s) > 0);
 
-				samples_populated = s->fifo.read(tx_buffer_current,
-					buffer_samples_remaining);
+				// 读取 FIFO.
+				samples_populated = s->fifo.read(tx_buffer_current, buffer_samples_remaining);
 			}
 
+			/// 通知 FIFO 可写入.
 			s->fifo_write_ready.notify_all();
 
 			if (s->is_finished_generation()) {

@@ -10,6 +10,11 @@ FileDevice::FileDevice(const std::string& filename)
 	m_filename = filename;
 }
 
+FileDevice::~FileDevice()
+{
+	close();
+}
+
 bool FileDevice::open()
 {
 	if (!is_open()) {

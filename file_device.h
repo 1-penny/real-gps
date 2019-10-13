@@ -12,6 +12,7 @@ class FileDevice : public Device
 {
 public:
 	FileDevice(const std::string& filename = "");
+	virtual ~FileDevice();
 
 public:
 	virtual bool open();

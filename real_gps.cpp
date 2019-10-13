@@ -40,9 +40,8 @@ int main(int argc, char* argv[])
 
 	sim_t s;
 
-	// Config simulator.
-	s.status = s.config(params);
-	if (s.status != 0) {
+	/// 配置模拟环境.
+	if (s.config(params) != 0) {
 		fprintf(stderr, "Failed to config sim.\n");
 		return -1;
 	}
@@ -68,39 +67,38 @@ int main(int argc, char* argv[])
 	}
 
 	/// 启动 GPS 任务.
-	if (s.start_gps_task()) {
-		printf("Creating GPS task...\n");
-	}
-	else {
+	if (!s.start_gps_task()) {
 		fprintf(stderr, "Failed to start GPS task.\n");
 		return -1;
 	}
+	else {
+		printf("Creating GPS task...\n");
+	}
 
 	/// 等待 GPS 任务初始化完成.
-	{
-		std::unique_lock<std::mutex> lock(s.init_mtx);
-		while (!s.gps_ready) {
-			s.initialization_done.wait(lock);
-		}
+	std::unique_lock<std::mutex> lock(s.init_mtx);
+	while (!s.gps_ready) {
+		s.initialization_done.wait(lock);
 	}
+	lock.unlock();
 
 	// Fillfull the FIFO.
 	if (s.fifo.is_write_ready()) {
 		s.fifo_write_ready.notify_all();
 	}
 
-	// open the device
+	// 打开设备.
 	if (!s.device->open()) {
 		return -1;
 	}
 
 	/// 启动发送任务.
-	if (s.start_tx_task()) {
-		printf("Creating TX task...\n");
-	}
-	else {
+	if (! s.start_tx_task()) {
 		fprintf(stderr, "Failed to start TX task.\n");
 		return -1;
+	}
+	else {
+		printf("Creating TX task...\n");
 	}
 
 	// Running...

@@ -13,6 +13,15 @@ UsrpDevice::UsrpDevice(const std::string& dev_addr)
 	initialize();
 }
 
+UsrpDevice::~UsrpDevice()
+{
+	close();
+
+	if (m_usrp) {
+		m_usrp.reset();
+	}
+}
+
 bool UsrpDevice::initialize()
 {
 	if (!m_usrp) {

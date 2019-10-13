@@ -17,6 +17,7 @@ class UsrpDevice : public Device
 {
 public:
 	UsrpDevice(const std::string& dev_addr = "");
+	virtual ~UsrpDevice();
 
 public:
 	virtual bool initialize();
